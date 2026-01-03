@@ -1,0 +1,56 @@
+{% extends 'life_manager/base.html' %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-white">Productivity Insights</h1>
+        <div class="text-sm text-gray-400">Where you thrive.</div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Top Locations -->
+        <div class="glass rounded-2xl p-6">
+            <h3 class="text-lg font-semibold mb-4 text-pink-400">Top Performing Places</h3>
+            <div class="space-y-4">
+                {% for place in top_places %}
+                {% if place.num_achievements > 0 %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>{{ place.name }}</span>
+                        <span class="font-mono text-gray-400">{{ place.num_achievements }} wins</span>
+                    </div>
+                    <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-pink-500 to-purple-500" style="width: 50%;"></div>
+                        <!-- Note: Width calculation would happen in backend or JS ideally, hardcoded 50% for mockup -->
+                    </div>
+                </div>
+                {% endif %}
+                {% empty %}
+                <p class="text-gray-500 text-sm">No data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Mood Stats -->
+        <div class="glass rounded-2xl p-6">
+            <h3 class="text-lg font-semibold mb-4 text-blue-400">Best Mood for Focus</h3>
+            <div class="space-y-4">
+                {% for mood in mood_stats %}
+                {% if mood.total_points > 0 %}
+                <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid {{ mood.icon|default:'fa-smile' }}"></i> {{ mood.name }}
+                    </span>
+                    <span class="font-bold text-blue-400">{{ mood.total_points }} pts</span>
+                </div>
+                {% endif %}
+                {% empty %}
+                <p class="text-gray-500 text-sm">No data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'life_manager/base.html' %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- 1. Header & Context Status -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                {% if context %}
+                Context Active
+                {% else %}
+                New Context
+                {% endif %}
+            </h1>
+            <p class="text-gray-400 mt-1">
+                {% if context %}
+                <span class="text-green-400"><i class="fa-solid fa-circle text-[8px] align-middle mr-1"></i>Live</span>
+                Signature: <span class="font-mono text-xs bg-gray-800 px-2 py-1 rounded">{{ context.unique_signature
+                    }}</span>
+                {% else %}
+                Select options to generate a context.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Context Pills -->
+        <div class="flex flex-wrap gap-2">
+            {% for opt_id in selected_ids %}
+            {% for group in groups %}
+            {% for opt in group.options.all %}
+            {% if opt.id == opt_id %}
+            <span
+                class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30 flex items-center gap-2">
+                <i class="fa-solid {{ opt.icon|default:'fa-tag' }}"></i> {{ opt.name }}
+            </span>
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 2. Quick Actions (Presets) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {% for preset in presets %}
+        <a href="?preset={{ preset.id }}"
+            class="group glass rounded-xl p-4 hover:bg-gray-700/50 transition-all border-l-4 border-transparent hover:border-primary">
+            <div class="flex flex-col items-center text-center gap-2">
+                <i
+                    class="fa-solid {{ preset.icon }} text-xl group-hover:text-white text-gray-400 transition-colors"></i>
+                <span class="text-xs font-medium text-gray-300 group-hover:text-white">{{ preset.name }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 3. Main Control Panel & Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- LEFT: Context Selector -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-pink-500"></i> Adjust Reality
+                </h2>
+                <form method="get" action="{% url 'life_manager:dashboard' %}" class="space-y-4">
+                    {% for group in groups %}
+                    <div>
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 block">{{
+                            group.name }}</label>
+                        <select name="options"
+                            class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                            <option value="">-- Any --</option>
+                            {% for opt in group.options.all %}
+                            <option value="{{ opt.id }}" {% if opt.id in selected_ids %}selected{% endif %}>
+                                {{ opt.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endfor %}
+                    <button type="submit"
+                        class="w-full bg-primary hover:bg-secondary text-white font-medium py-2 rounded-lg transition-colors mt-2">
+                        Update Context
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT: Dashboard Content -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- A. Goals Section -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-bullseye text-green-500"></i> Focused Goals
+                    <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded-full">{{ goals.count }}</span>
+                </h2>
+
+                {% if not goals %}
+                <div class="text-center py-12 glass rounded-2xl border-dashed border-2 border-gray-700">
+                    <i class="fa-solid fa-check-circle text-4xl text-gray-600 mb-3"></i>
+                    <p class="text-gray-400">All clear! No goals for this context.</p>
+                </div>
+                {% endif %}
+
+                <div class="grid gap-3">
+                    {% for goal in goals %}
+                    <div
+                        class="glass p-4 rounded-xl flex items-center justify-between group hover:border-primary/50 transition-colors">
+                        <div class="flex items-start gap-3">
+                            <!-- Priority Indicator -->
+                            <div class="mt-1 h-2 w-2 rounded-full 
+                                {% if goal.importance == 4 %}bg-red-500 animate-pulse{% elif goal.importance == 3 %}bg-orange-400{% elif goal.importance == 2 %}bg-blue-400{% else %}bg-gray-400{% endif %}"
+                                title="{{ goal.get_importance_display }}">
+                            </div>
+
+                            <div>
+                                <h3 class="font-medium text-gray-200 group-hover:text-white transition-colors">{{
+                                    goal.title }}</h3>
+                                <p class="text-xs text-gray-500">
+                                    {% if goal.linked_option %}
+                                    <i class="fa-solid fa-link"></i> Linked to {{ goal.linked_option.name }}
+                                    {% elif goal.context %}
+                                    <i class="fa-solid fa-layer-group"></i> Exclusive to this Context
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <form method="post" action="{% url 'life_manager:mark_goal_achieved' goal.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="reflection" value="Quick completion via dashboard">
+                            <button type="submit"
+                                class="opacity-0 group-hover:opacity-100 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white px-3 py-1 rounded text-xs font-medium transition-all transform translate-x-2 group-hover:translate-x-0">
+                                Complete
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- B. Articles Section -->
+            {% if articles %}
+            <div class="space-y-4 pt-4 border-t border-gray-800">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-book-open text-blue-500"></i> Context Memory
+                </h2>
+                <div class="grid gap-4">
+                    {% for article in articles %}
+                    <div class="glass p-5 rounded-2xl">
+                        <h3 class="text-lg font-semibold text-white mb-2">{{ article.title }}</h3>
+                        <div class="prose prose-invert prose-sm text-gray-400 max-w-none">
+                            {{ article.content|linebreaks }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}
