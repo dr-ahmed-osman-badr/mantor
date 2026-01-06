@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count
-from .models import StatusGroup, StatusOption, ContextPreset, PersonalGoal, Achievement, SituationContext
+from django.views.decorators.csrf import csrf_exempt
+from .models import StatusGroup, StatusOption, ContextPreset, PersonalGoal, Achievement, SituationContext, OptionCategory
 from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService
 
 def dashboard_view(request):
@@ -41,16 +42,32 @@ def dashboard_view(request):
     # D. Get Articles & Goals
     articles = context.articles.all() if context else []
     goals = get_all_relevant_goals(context)
+    recommendations = context.recommendations.filter(priority__gte=1).order_by('-priority', '-created_at') if context else []
     
-    # E. Get All Groups/Options for the UI Dropdowns
-    groups = StatusGroup.objects.prefetch_related('options', 'categories__options').all()
+    groups_qs = StatusGroup.objects.prefetch_related(
+        'statusoption_set',
+        'categories',
+        'categories__subcategories',
+        'categories__statusoption_set'
+    ).all()
+    
+    # Custom ordering: Myself first, then others
+    preferred_order = ["Myself", "People", "Place", "Time", "Tools"]
+    groups = sorted(groups_qs, key=lambda g: preferred_order.index(g.name) if g.name in preferred_order else 999)
+    
     presets = ContextPreset.objects.all()
+
+    # F. Get/Resolve selected options objects for display
+    # Order by Group Name to support {% regroup %} in template
+    selected_options = StatusOption.objects.filter(id__in=selected_ids).select_related('group').order_by('group__name', 'category__name', 'name')
 
     context_data = {
         'context': context,
         'selected_ids': selected_ids,
+        'selected_options': selected_options,
         'articles': articles,
         'goals': goals,
+        'recommendations': recommendations,
         'groups': groups,
         'presets': presets,
     }
@@ -88,9 +105,151 @@ def analytics_view(request):
     Reports page
     """
     top_places = AnalyticsService.get_top_performing_locations()
+    status_stats = AnalyticsService.get_status_productivity_stats()
     mood_stats = AnalyticsService.get_mood_productivity_stats()
     
     return render(request, 'life_manager/analytics.html', {
         'top_places': top_places,
+        'status_stats': status_stats,
         'mood_stats': mood_stats
     })
+
+def add_option(request):
+    """
+    Simpler quick-add for options (e.g., adding a new Person)
+    """
+    if request.method == 'POST':
+        group_id = request.POST.get('group_id')
+        category_id = request.POST.get('category_id')
+        subcategory_id = request.POST.get('subcategory_id')
+        name = request.POST.get('name')
+        
+        if group_id and name:
+            group = get_object_or_404(StatusGroup, id=group_id)
+            category = None
+            
+            # 1. Try existing category / subcategory
+            if subcategory_id:
+                  category = OptionCategory.objects.filter(id=subcategory_id).first()
+            elif category_id:
+                category = OptionCategory.objects.filter(id=category_id).first()
+            
+            # Handle "Create New Category" Override (Top level only for now)
+            new_cat_name = request.POST.get('category_name')
+            if new_cat_name and group:
+                category, _ = OptionCategory.objects.get_or_create(
+                    group=group,
+                    name=new_cat_name
+                )
+
+            if group:
+                # Default icon for People
+                icon = "fa-user" if group.name == "People" else "fa-tag"
+                
+                StatusOption.objects.get_or_create(
+                    group=group,
+                    category=category,
+                    name=name,
+                    defaults={'icon': icon}
+                )
+            
+            
+    return redirect('life_manager:dashboard')
+
+def add_goal(request):
+    """
+    Quick add goal linked to an option
+    """
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        importance = request.POST.get('importance', 2)
+        linked_option_id = request.POST.get('linked_option_id')
+        
+        if title:
+            goal = PersonalGoal(
+                title=title,
+                importance=int(importance)
+            )
+            
+            if linked_option_id:
+                goal.linked_option = get_object_or_404(StatusOption, id=linked_option_id)
+            else:
+                # If no option selected, maybe link to current context? 
+                # For now, let's keep it simple: global goal if no option, or require option?
+                # The user specifically asked to add targets TO items.
+                pass
+                
+            goal.save()
+            
+            
+    return redirect('life_manager:dashboard')
+
+def add_article(request):
+    """
+    Add a note/article to the current context
+    """
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        # We need to know WHICH context to attach to.
+        # Ideally, we pass the signature or IDs. 
+        # For simplicity, let's re-resolve based on active session/params or hidden input.
+        # Let's use a hidden input 'context_signature' from the form
+        unique_signature = request.POST.get('unique_signature')
+        
+        if title and content and unique_signature:
+            context = SituationContext.objects.filter(unique_signature=unique_signature).first()
+            if context:
+                from .models import Article
+                Article.objects.create(
+                    context=context,
+                    title=title,
+                    content=content
+                )
+    
+    return redirect('life_manager:dashboard')
+    return redirect('life_manager:dashboard')
+
+def get_options_api(request):
+    """
+    API Endpoint: GET /options/
+    Returns a JSON list of all StatusOptions for mobile sync.
+    """
+    from django.http import JsonResponse
+    
+    options = StatusOption.objects.select_related('group', 'category').all()
+    data = []
+    
+    for opt in options:
+        item = {
+            "id": opt.id,
+            "name": opt.name,
+            "icon": opt.icon,
+            "group": opt.group.name,
+            "category": opt.category.name if opt.category else None,
+            # If we had subcategories, we could add 'parent_category' logic here,
+            # but for now 'category' name is likely sufficient for the simple sync.
+            # To be safe, let's add category_id and parent_id if needed.
+            "category_id": opt.category.id if opt.category else None,
+        }
+        data.append(item)
+        
+    return JsonResponse({"options": data})
+
+@csrf_exempt
+def delete_option_api(request, option_id):
+    """
+    API Endpoint: DELETE /options/<int:option_id>/
+    Deletes an option.
+    """
+    from django.http import JsonResponse
+    
+    if request.method == 'DELETE':
+        try:
+            option = StatusOption.objects.get(id=option_id)
+            option.delete()
+            return JsonResponse({"status": "deleted", "id": option_id})
+        except StatusOption.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+            
+    return JsonResponse({"error": "Method not allowed"}, status=405)

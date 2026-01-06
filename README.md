@@ -6,14 +6,15 @@ A Django-based intelligent system that manages your life's context, goals, and p
 
 ## 🌟 Detailed Features
 
-### 1. The Context Engine (5-Dimensional Logic)
+### 1. The Context Engine (The "Big Five" Logic)
 The core of the system is a sophisticated engine that resolves your current state into a **Unique Signature**.
--   **Multi-Dimensional**: Tracks 5 key dimensions:
-    -   📍 **Place**: (Home, Office, Gym, Cafe)
-    -   👥 **People**: (Alone, Family, Boss, Team, Friends)
-    -   ⏳ **Time**: (Morning, Evening, Weekend, Specific Days)
-    -   😊 **Mood**: (Focus, Relax, High Energy, Low Energy)
-    -   💻 **Tools**: (Laptop, Phone, Car, Tablet)
+-   **The Big Five Dimensions**: Tracks 5 key areas:
+    -   👤 **Myself**: Internal state (e.g., *Status*: Busy/Free, *Mood*: Focus/Relax).
+    -   👥 **People**: (Alone, Family, Friends, Team). Supports Sub-categories (e.g., Friends > Besties).
+    -   📍 **Place**: (Home, Office, Gym, Cafe).
+    -   ⏳ **Time**: (Morning, Evening, Weekend).
+    -   💻 **Tools**: (Laptop, Phone, Car).
+-   **Three-Level Hierarchy**: Organize options deeply (e.g., `People` > `Friends` > `Amir`).
 -   **Signature Resolution**: Automatically generates a hash (e.g., `1-4-12-30`) representing the combination. `Home + Alone` is treated differently from `Home + Family`.
 -   **Smart Defaults**: Uses heuristic logic to guess your context based on:
     -   *Time of Day*: Auto-selects "Morning" or "Evening".
@@ -24,11 +25,13 @@ Goals are dynamic and context-sensitive. They are not static to-do lists.
 -   **Flexible Linking**:
     -   *Option-Based*: Link a goal to "Office". It appears *whenever* you are at the office, regardless of other factors.
     -   *Context-Based*: Link a goal to "Office + Boss". It appears *only* when both conditions are met.
+-   **Set Target**: Create goals directly from the dashboard and link them to specific items (e.g., "Ask X about Y" linked to *Person: Amir*).
 -   **Priority & Urgency**: Visual indicators (Red/Orange/Blue) for Critical, High, and Medium priority goals.
 -   **Cross-Context Aggregation**: The dashboard intelligently merges goals from all your current active dimensions into one unified view.
 
 ### 3. Knowledge Base & Memory
 -   **Contextual Articles**: Write notes or articles tagged to a specific context (e.g., "Server Debugging Guide" linked to "Work + Laptop").
+-   **Quick Add**: Instantly add thoughts or ideas to your current context via the "Context Memory" card.
 -   **Auto-Surface**: The next time you enter that context, the system automatically retrieves these notes.
 
 ### 4. Productivity Analytics
@@ -39,6 +42,7 @@ Goals are dynamic and context-sensitive. They are not static to-do lists.
 ### 5. Premium UX
 -   **Dark Mode**: Sleek, modern TailwindCSS interface.
 -   **Quick Presets**: Customizable "One-Click" buttons for common states (e.g., "Deep Work Mode", "Commute").
+-   **Expand World**: Add new People, Places, or Tools directly from the dashboard. Now supports **Categories** (e.g., created "Colleagues") and **Sub-Categories** (e.g., "Main Office").
 
 ---
 
@@ -46,16 +50,17 @@ Goals are dynamic and context-sensitive. They are not static to-do lists.
 
 ### Step 1: Initial Setup
 1.  **Run Migrations**: `python manage.py migrate`
-2.  **Create Superuser**: `python manage.py createsuperuser`
-3.  **Run Server**: `python manage.py runserver`
+2.  **Populate Data**: `python populate_initial_data.py` (Adds default Places, People, etc.)
+3.  **Create Superuser**: `python manage.py createsuperuser`
+4.  **Run Server**: `python manage.py runserver`
 
 ### Step 2: Define Your World (Admin Panel)
 Go to `http://localhost:8000/admin` and populate the basics:
-1.  **Status Groups**: Create groups if they don't exist (Place, People, Time, Tools, Mood).
+1.  **Status Groups**: Create groups if they don't exist (Myself, People, Place, Time, Tools).
 2.  **Status Options**: Add your real-life options:
+    -   *Myself*: Busy, Free, Focus, Relax (use Categories 'Status'/'Mood').
     -   *Place*: Home, Office, Gym.
-    -   *People*: Alone, Partner, Team.
-    -   *Tools*: Laptop, Phone.
+    -   *People*: Alone, Partner, Team (use Category 'Friends').
 
 ### Step 3: Create Presets (Optional but Recommended)
 In the Admin panel, create **Context Presets** for accurate quick-switching:

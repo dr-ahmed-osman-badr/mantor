@@ -18,9 +18,12 @@ class OptionCategory(models.Model):
     Sub-categories (e.g., Family within People, or Devices within Tools)
     """
     group = models.ForeignKey(StatusGroup, on_delete=models.CASCADE, related_name='categories')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subcategories')
     name = models.CharField(max_length=100)
 
     def __str__(self):
+        if self.parent:
+             return f"{self.group.name} > {self.parent.name} > {self.name}"
         return f"{self.group.name} > {self.name}"
 
 class StatusOption(models.Model):
@@ -124,3 +127,24 @@ class ContextPreset(models.Model):
 
     def __str__(self):
         return self.name
+
+class AiRecommendation(models.Model):
+    """
+    AI-generated recommendations based on the context.
+    """
+    PRIORITY_CHOICES = [
+        (1, 'Low'),
+        (2, 'Medium'),
+        (3, 'High'),
+        (4, 'Critical'),
+    ]
+
+    context = models.ForeignKey(SituationContext, on_delete=models.CASCADE, related_name='recommendations')
+    title = models.CharField(max_length=200)
+    summary = models.TextField()
+    recommendation = models.TextField()
+    priority = models.IntegerField(choices=PRIORITY_CHOICES, default=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.get_priority_display()})"

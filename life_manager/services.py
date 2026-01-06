@@ -59,6 +59,10 @@ def get_smart_defaults(request):
     if device_option:
         defaults.append(device_option.id)
         
+    # D. Default Status (if available in Myself -> Status)
+    # Optional: could auto-select 'Free' or 'Busy' based on time/calendar?
+    # For now, let's leave internal state manual.
+        
     return defaults
 
 # --- 3. Goal Aggregation Logic ---
@@ -93,9 +97,16 @@ class AnalyticsService:
             .order_by('-num_achievements')
 
     @staticmethod
+    def get_status_productivity_stats():
+        """Status vs Points (Busy/Free) - Now under Myself group"""
+        return StatusOption.objects.filter(group__name="Myself", category__name="Status") \
+            .annotate(total_points=Sum('contexts__achievement__points')) \
+            .order_by('-total_points')
+
+    @staticmethod
     def get_mood_productivity_stats():
-        """Mood vs Points"""
-        return StatusOption.objects.filter(group__name="Mood") \
+        """Mood vs Points (Happy/Focus) - Now under Myself group"""
+        return StatusOption.objects.filter(group__name="Myself", category__name="Mood") \
             .annotate(total_points=Sum('contexts__achievement__points')) \
             .order_by('-total_points')
             

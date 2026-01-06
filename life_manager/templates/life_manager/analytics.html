@@ -33,23 +33,42 @@
             </div>
         </div>
 
-        <!-- Mood Stats -->
+        <!-- Status Stats -->
         <div class="glass rounded-2xl p-6">
-            <h3 class="text-lg font-semibold mb-4 text-blue-400">Best Mood for Focus</h3>
+            <h3 class="text-lg font-semibold mb-4 text-blue-400">Best Status for Focus</h3>
             <div class="space-y-4">
-                {% for mood in mood_stats %}
-                {% if mood.total_points > 0 %}
+                {% for status in status_stats %}
+                {% if status.total_points > 0 %}
                 <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                     <span class="flex items-center gap-2">
-                        <i class="fa-solid {{ mood.icon|default:'fa-smile' }}"></i> {{ mood.name }}
+                        <i class="fa-solid {{ status.icon|default:'fa-circle-check' }}"></i> {{ status.name }}
                     </span>
-                    <span class="font-bold text-blue-400">{{ mood.total_points }} pts</span>
+                    <span class="font-bold text-blue-400">{{ status.total_points }} pts</span>
                 </div>
                 {% endif %}
                 {% empty %}
                 <p class="text-gray-500 text-sm">No data yet.</p>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+
+    <!-- Mood Stats -->
+    <div class="glass rounded-2xl p-6">
+        <h3 class="text-lg font-semibold mb-4 text-purple-400">Best Mood for Focus</h3>
+        <div class="space-y-4">
+            {% for mood in mood_stats %}
+            {% if mood.total_points > 0 %}
+            <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid {{ mood.icon|default:'fa-face-smile' }}"></i> {{ mood.name }}
+                </span>
+                <span class="font-bold text-purple-400">{{ mood.total_points }} pts</span>
+            </div>
+            {% endif %}
+            {% empty %}
+            <p class="text-gray-500 text-sm">No data yet.</p>
+            {% endfor %}
         </div>
     </div>
 </div>

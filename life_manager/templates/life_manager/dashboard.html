@@ -24,19 +24,28 @@
             </p>
         </div>
 
-        <!-- Context Pills -->
-        <div class="flex flex-wrap gap-2">
-            {% for opt_id in selected_ids %}
-            {% for group in groups %}
-            {% for opt in group.options.all %}
-            {% if opt.id == opt_id %}
-            <span
-                class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30 flex items-center gap-2">
-                <i class="fa-solid {{ opt.icon|default:'fa-tag' }}"></i> {{ opt.name }}
-            </span>
-            {% endif %}
-            {% endfor %}
-            {% endfor %}
+        <!-- Context Pills (Grouped) -->
+        <div class="flex flex-col gap-3 items-end md:items-start">
+            {% regroup selected_options by group.name as grouped_options %}
+            {% for group_item in grouped_options %}
+            <div class="flex flex-col items-end md:items-start gap-1">
+                <span class="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">{{
+                    group_item.grouper }}</span>
+                <div class="flex flex-wrap gap-2 justify-end md:justify-start">
+                    {% for opt in group_item.list %}
+                    <span
+                        class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30 flex items-center gap-2">
+                        <i class="fa-solid {{ opt.icon|default:'fa-tag' }}"></i>
+                        {% if opt.category %}
+                        <span class="opacity-70">{{ opt.category.name }} &rsaquo;</span>
+                        {% endif %}
+                        {{ opt.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <span class="text-gray-600 text-sm italic">No context selected</span>
             {% endfor %}
         </div>
     </div>
@@ -72,7 +81,7 @@
                         <select name="options"
                             class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
                             <option value="">-- Any --</option>
-                            {% for opt in group.options.all %}
+                            {% for opt in group.statusoption_set.all %}
                             <option value="{{ opt.id }}" {% if opt.id in selected_ids %}selected{% endif %}>
                                 {{ opt.name }}
                             </option>
@@ -88,80 +97,272 @@
             </div>
         </div>
 
-        <!-- RIGHT: Dashboard Content -->
-        <div class="lg:col-span-2 space-y-6">
-
-            <!-- A. Goals Section -->
-            <div class="space-y-4">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-bullseye text-green-500"></i> Focused Goals
-                    <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded-full">{{ goals.count }}</span>
-                </h2>
-
-                {% if not goals %}
-                <div class="text-center py-12 glass rounded-2xl border-dashed border-2 border-gray-700">
-                    <i class="fa-solid fa-check-circle text-4xl text-gray-600 mb-3"></i>
-                    <p class="text-gray-400">All clear! No goals for this context.</p>
+        <!-- Add New Option (Expand World) -->
+        <div class="glass rounded-2xl p-6">
+            <h2 class="text-sm font-semibold mb-3 text-gray-400 flex items-center gap-2">
+                <i class="fa-solid fa-plus-circle text-gray-500"></i> Expand Your World
+            </h2>
+            <form method="post" action="{% url 'life_manager:add_option' %}" class="space-y-3">
+                {% csrf_token %}
+                <!-- 1. Group Selection -->
+                <div>
+                    <select id="groupSelect" name="group_id" required
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none"
+                        onchange="filterCategories()">
+                        <option value="" disabled selected>Select Group...</option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                {% endif %}
 
-                <div class="grid gap-3">
-                    {% for goal in goals %}
-                    <div
-                        class="glass p-4 rounded-xl flex items-center justify-between group hover:border-primary/50 transition-colors">
-                        <div class="flex items-start gap-3">
-                            <!-- Priority Indicator -->
-                            <div class="mt-1 h-2 w-2 rounded-full 
-                                {% if goal.importance == 4 %}bg-red-500 animate-pulse{% elif goal.importance == 3 %}bg-orange-400{% elif goal.importance == 2 %}bg-blue-400{% else %}bg-gray-400{% endif %}"
-                                title="{{ goal.get_importance_display }}">
-                            </div>
+                <!-- 2. Category Selection (Dependent) -->
+                <div>
+                    <select id="categorySelect" name="category_id"
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
+                        disabled onchange="filterSubCategories()">
+                        <option value="">-- Select Category (Optional) --</option>
+                        {% for group in groups %}
+                        {% for cat in group.categories.all %}
+                        {% if not cat.parent %}
+                        <option value="{{ cat.id }}" data-group-id="{{ group.id }}" hidden>
+                            {{ cat.name }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                        {% endfor %}
+                    </select>
+                </div>
 
-                            <div>
-                                <h3 class="font-medium text-gray-200 group-hover:text-white transition-colors">{{
-                                    goal.title }}</h3>
-                                <p class="text-xs text-gray-500">
-                                    {% if goal.linked_option %}
-                                    <i class="fa-solid fa-link"></i> Linked to {{ goal.linked_option.name }}
-                                    {% elif goal.context %}
-                                    <i class="fa-solid fa-layer-group"></i> Exclusive to this Context
-                                    {% endif %}
-                                </p>
-                            </div>
-                        </div>
+                <!-- 3. Sub-Category Selection (Dependent on Category) -->
+                <div id="subCatContainer" class="hidden">
+                    <select id="subCategorySelect" name="subcategory_id"
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
+                        disabled>
+                        <option value="">-- Select Sub-Category --</option>
+                        {% for group in groups %}
+                        {% for cat in group.categories.all %}
+                        {% for sub in cat.subcategories.all %}
+                        <option value="{{ sub.id }}" data-parent-id="{{ cat.id }}" hidden>
+                            {{ sub.name }}
+                        </option>
+                        {% endfor %}
+                        {% endfor %}
+                        {% endfor %}
+                    </select>
+                </div>
 
-                        <form method="post" action="{% url 'life_manager:mark_goal_achieved' goal.id %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="reflection" value="Quick completion via dashboard">
-                            <button type="submit"
-                                class="opacity-0 group-hover:opacity-100 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white px-3 py-1 rounded text-xs font-medium transition-all transform translate-x-2 group-hover:translate-x-0">
-                                Complete
-                            </button>
-                        </form>
+                <!-- JS for dependency -->
+                <script>
+                    function filterCategories() {
+                        const groupId = document.getElementById('groupSelect').value;
+                        const catSelect = document.getElementById('categorySelect');
+                        const options = catSelect.querySelectorAll('option[data-group-id]');
+
+                        // Reset
+                        catSelect.value = "";
+                        catSelect.disabled = !groupId;
+
+                        // Show/Hide based on group
+                        let hasOptions = false;
+                        options.forEach(opt => {
+                            if (opt.getAttribute('data-group-id') === groupId) {
+                                opt.hidden = false;
+                                hasOptions = true;
+                            } else {
+                                opt.hidden = true;
+                            }
+                        });
+
+                        if (!hasOptions) {
+                            catSelect.disabled = true;
+                        }
+                    }
+                </script>
+                <div>
+                    <input type="text" name="category_name" placeholder="Or New Category (e.g. Work)"
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" name="name" placeholder="Name (e.g. Project Alpha)" required
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none">
+                    <button type="submit"
+                        class="bg-gray-700 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add Target (Goal) -->
+        <div class="glass rounded-2xl p-6">
+            <h2 class="text-sm font-semibold mb-3 text-gray-400 flex items-center gap-2">
+                <i class="fa-solid fa-crosshairs text-red-500"></i> Set Target
+            </h2>
+            <form method="post" action="{% url 'life_manager:add_goal' %}" class="space-y-3">
+                {% csrf_token %}
+                <input type="text" name="title" placeholder="Target (e.g. Drink Water)" required
+                    class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none text-white">
+
+                <div class="flex gap-2">
+                    <select name="linked_option_id" required
+                        class="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary outline-none">
+                        <option value="" disabled selected>-- Link to Item --</option>
+                        {% for group in groups %}
+                        <optgroup label="{{ group.name }}">
+                            {% for opt in group.statusoption_set.all %}
+                            <option value="{{ opt.id }}">{{ opt.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+
+                    <select name="importance"
+                        class="w-24 bg-dark border border-gray-700 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-primary outline-none">
+                        <option value="1">Low</option>
+                        <option value="2" selected>Med</option>
+                        <option value="3">High</option>
+                        <option value="4">Crit</option>
+                    </select>
+
+                    <button type="submit"
+                        class="bg-gray-700 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RIGHT: Dashboard Content -->
+    <div class="lg:col-span-2 space-y-6">
+
+        <!-- A. AI Insights Section -->
+        {% if recommendations %}
+        <div class="space-y-4">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> AI Insights
+            </h2>
+            <div class="grid gap-3">
+                {% for rec in recommendations %}
+                <div class="glass p-5 rounded-2xl relative overflow-hidden group border border-purple-500/20">
+                    <div class="absolute top-0 right-0 p-3 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <span class="text-[10px] uppercase font-bold px-2 py-1 rounded bg-black/30 text-gray-300">
+                            {{ rec.get_priority_display }} Priority
+                        </span>
                     </div>
-                    {% endfor %}
+                    <h3 class="font-bold text-lg text-white mb-1">{{ rec.title }}</h3>
+                    <p class="text-sm text-gray-400 mb-3 italic">{{ rec.summary }}</p>
+                    <div class="bg-dark/40 rounded-lg p-3 text-sm text-gray-200 border-l-2 border-purple-500">
+                        {{ rec.recommendation }}
+                    </div>
                 </div>
+                {% endfor %}
             </div>
+        </div>
+        {% else %}
+        {% if context %}
+        <div class="space-y-4 opacity-50">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> AI Insights
+            </h2>
+            <div class="glass p-5 rounded-2xl border-dashed border-2 border-purple-500/30 text-center">
+                <p class="text-sm text-gray-400 italic">No AI insights generated for this context yet.</p>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
 
-            <!-- B. Articles Section -->
-            {% if articles %}
-            <div class="space-y-4 pt-4 border-t border-gray-800">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-book-open text-blue-500"></i> Context Memory
-                </h2>
-                <div class="grid gap-4">
-                    {% for article in articles %}
-                    <div class="glass p-5 rounded-2xl">
-                        <h3 class="text-lg font-semibold text-white mb-2">{{ article.title }}</h3>
-                        <div class="prose prose-invert prose-sm text-gray-400 max-w-none">
-                            {{ article.content|linebreaks }}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+        <!-- B. Goals Section -->
+        <div class="space-y-4">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-bullseye text-green-500"></i> Focused Goals
+                <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded-full">{{ goals.count }}</span>
+            </h2>
+
+            {% if not goals %}
+            <div class="text-center py-12 glass rounded-2xl border-dashed border-2 border-gray-700">
+                <i class="fa-solid fa-check-circle text-4xl text-gray-600 mb-3"></i>
+                <p class="text-gray-400">All clear! No goals for this context.</p>
             </div>
             {% endif %}
 
+            <div class="grid gap-3">
+                {% for goal in goals %}
+                <div
+                    class="glass p-4 rounded-xl flex items-center justify-between group hover:border-primary/50 transition-colors">
+                    <div class="flex items-start gap-3">
+                        <!-- Priority Indicator -->
+                        <div class="mt-1 h-2 w-2 rounded-full 
+                                {% if goal.importance == 4 %}bg-red-500 animate-pulse{% elif goal.importance == 3 %}bg-orange-400{% elif goal.importance == 2 %}bg-blue-400{% else %}bg-gray-400{% endif %}"
+                            title="{{ goal.get_importance_display }}">
+                        </div>
+
+                        <div>
+                            <h3 class="font-medium text-gray-200 group-hover:text-white transition-colors">{{
+                                goal.title }}</h3>
+                            <p class="text-xs text-gray-500">
+                                {% if goal.linked_option %}
+                                <i class="fa-solid fa-link"></i> Linked to {{ goal.linked_option.name }}
+                                {% elif goal.context %}
+                                <i class="fa-solid fa-layer-group"></i> Exclusive to this Context
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <form method="post" action="{% url 'life_manager:mark_goal_achieved' goal.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="reflection" value="Quick completion via dashboard">
+                        <button type="submit"
+                            class="opacity-0 group-hover:opacity-100 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white px-3 py-1 rounded text-xs font-medium transition-all transform translate-x-2 group-hover:translate-x-0">
+                            Complete
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
         </div>
+
+        <!-- B. Articles Section -->
+        <div class="space-y-4 pt-4 border-t border-gray-800">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-blue-500"></i> Context Memory
+            </h2>
+
+            <!-- Quick Add Article Form -->
+            {% if context %}
+            <div class="glass p-4 rounded-xl border border-blue-500/20">
+                <form method="post" action="{% url 'life_manager:add_article' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="unique_signature" value="{{ context.unique_signature }}">
+                    <input type="text" name="title" placeholder="New Note Title..." required
+                        class="w-full bg-transparent text-white font-semibold mb-2 focus:outline-none placeholder-gray-500">
+                    <textarea name="content" placeholder="Write something about this context..." rows="2" required
+                        class="w-full bg-dark/50 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+                    <div class="text-right mt-2">
+                        <button type="submit"
+                            class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors">
+                            Save Note
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="grid gap-4">
+                {% for article in articles %}
+                <div class="glass p-5 rounded-2xl">
+                    <h3 class="text-lg font-semibold text-white mb-2">{{ article.title }}</h3>
+                    <div class="prose prose-invert prose-sm text-gray-400 max-w-none">
+                        {{ article.content|linebreaks }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
     </div>
+</div>
 </div>
 {% endblock %}
