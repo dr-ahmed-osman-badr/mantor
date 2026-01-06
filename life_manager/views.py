@@ -210,46 +210,21 @@ def add_article(request):
     return redirect('life_manager:dashboard')
     return redirect('life_manager:dashboard')
 
-def get_options_api(request):
-    """
-    API Endpoint: GET /options/
-    Returns a JSON list of all StatusOptions for mobile sync.
-    """
-    from django.http import JsonResponse
-    
-    options = StatusOption.objects.select_related('group', 'category').all()
-    data = []
-    
-    for opt in options:
-        item = {
-            "id": opt.id,
-            "name": opt.name,
-            "icon": opt.icon,
-            "group": opt.group.name,
-            "category": opt.category.name if opt.category else None,
-            # If we had subcategories, we could add 'parent_category' logic here,
-            # but for now 'category' name is likely sufficient for the simple sync.
-            # To be safe, let's add category_id and parent_id if needed.
-            "category_id": opt.category.id if opt.category else None,
-        }
-        data.append(item)
-        
-    return JsonResponse({"options": data})
+# --- API ViewSets ---
+from rest_framework import viewsets
+from .serializers import StatusOptionSerializer, ContextPresetSerializer
 
-@csrf_exempt
-def delete_option_api(request, option_id):
+class OptionViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API Endpoint: DELETE /options/<int:option_id>/
-    Deletes an option.
+    API for listing and retrieving StatusOptions.
+    (Currently read-only for bulk fetch, but could be extended)
     """
-    from django.http import JsonResponse
-    
-    if request.method == 'DELETE':
-        try:
-            option = StatusOption.objects.get(id=option_id)
-            option.delete()
-            return JsonResponse({"status": "deleted", "id": option_id})
-        except StatusOption.DoesNotExist:
-            return JsonResponse({"error": "Not found"}, status=404)
-            
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+    queryset = StatusOption.objects.select_related('group', 'category').all()
+    serializer_class = StatusOptionSerializer
+
+class PresetViewSet(viewsets.ModelViewSet):
+    """
+    API for creating and listing ContextPresets.
+    """
+    queryset = ContextPreset.objects.all()
+    serializer_class = ContextPresetSerializer

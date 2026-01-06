@@ -1,7 +1,13 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
 app_name = 'life_manager'
+
+# Create Router and register ViewSets
+router = DefaultRouter()
+router.register(r'options', views.OptionViewSet) # /options/
+router.register(r'presets', views.PresetViewSet) # /presets/
 
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),
@@ -10,6 +16,7 @@ urlpatterns = [
     path('add_goal/', views.add_goal, name='add_goal'),
     path('add_article/', views.add_article, name='add_article'),
     path('analytics/', views.analytics_view, name='analytics'),
-    path('options/', views.get_options_api, name='get_options_api'),
-    path('options/<int:option_id>/', views.delete_option_api, name='delete_option_api'),
+    
+    # API Routes managed by Router
+    path('', include(router.urls)),
 ]
