@@ -212,15 +212,51 @@ def add_article(request):
 
 # --- API ViewSets ---
 from rest_framework import viewsets
-from .serializers import StatusOptionSerializer, ContextPresetSerializer
+from .serializers import (
+    StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
+    SituationContextSerializer, ArticleSerializer, PersonalGoalSerializer,
+    AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer
+)
+from .models import (
+    StatusGroup, OptionCategory, StatusOption, 
+    SituationContext, Article, PersonalGoal, 
+    Achievement, ContextPreset, AiRecommendation
+)
 
-class OptionViewSet(viewsets.ReadOnlyModelViewSet):
+class GroupViewSet(viewsets.ModelViewSet):
+    queryset = StatusGroup.objects.all()
+    serializer_class = StatusGroupSerializer
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = OptionCategory.objects.all()
+    serializer_class = OptionCategorySerializer
+
+class OptionViewSet(viewsets.ModelViewSet):
     """
     API for listing and retrieving StatusOptions.
-    (Currently read-only for bulk fetch, but could be extended)
     """
     queryset = StatusOption.objects.select_related('group', 'category').all()
     serializer_class = StatusOptionSerializer
+
+class ContextViewSet(viewsets.ModelViewSet):
+    queryset = SituationContext.objects.prefetch_related('options').all()
+    serializer_class = SituationContextSerializer
+
+class ArticleViewSet(viewsets.ModelViewSet):
+    queryset = Article.objects.all()
+    serializer_class = ArticleSerializer
+
+class GoalViewSet(viewsets.ModelViewSet):
+    queryset = PersonalGoal.objects.all()
+    serializer_class = PersonalGoalSerializer
+
+class AchievementViewSet(viewsets.ModelViewSet):
+    queryset = Achievement.objects.all()
+    serializer_class = AchievementSerializer
+
+class RecommendationViewSet(viewsets.ModelViewSet):
+    queryset = AiRecommendation.objects.all()
+    serializer_class = AiRecommendationSerializer
 
 class PresetViewSet(viewsets.ModelViewSet):
     """

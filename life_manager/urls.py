@@ -6,8 +6,15 @@ app_name = 'life_manager'
 
 # Create Router and register ViewSets
 router = DefaultRouter()
-router.register(r'options', views.OptionViewSet) # /options/
-router.register(r'presets', views.PresetViewSet) # /presets/
+router.register(r'groups', views.GroupViewSet)
+router.register(r'categories', views.CategoryViewSet)
+router.register(r'options', views.OptionViewSet)
+router.register(r'presets', views.PresetViewSet)
+router.register(r'contexts', views.ContextViewSet)
+router.register(r'articles', views.ArticleViewSet)
+router.register(r'goals', views.GoalViewSet)
+router.register(r'achievements', views.AchievementViewSet)
+router.register(r'recommendations', views.RecommendationViewSet)
 
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),
