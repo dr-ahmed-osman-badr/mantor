@@ -11,7 +11,7 @@ router.register(r'categories', views.CategoryViewSet)
 router.register(r'options', views.OptionViewSet)
 router.register(r'presets', views.PresetViewSet)
 router.register(r'contexts', views.ContextViewSet)
-router.register(r'articles', views.ArticleViewSet)
+router.register(r'notes', views.NoteViewSet)
 router.register(r'goals', views.GoalViewSet)
 router.register(r'achievements', views.AchievementViewSet)
 router.register(r'recommendations', views.RecommendationViewSet)
@@ -21,7 +21,7 @@ urlpatterns = [
     path('mark_goal_achieved/<int:goal_id>/', views.mark_goal_achieved, name='mark_goal_achieved'),
     path('add_option/', views.add_option, name='add_option'),
     path('add_goal/', views.add_goal, name='add_goal'),
-    path('add_article/', views.add_article, name='add_article'),
+    path('add_note/', views.add_note, name='add_note'),
     path('analytics/', views.analytics_view, name='analytics'),
     
     # API Routes managed by Router

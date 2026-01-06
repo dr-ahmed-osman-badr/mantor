@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     StatusGroup, OptionCategory, StatusOption, 
-    SituationContext, Article, PersonalGoal, 
+    SituationContext, Note, PersonalGoal, 
     Achievement, ContextPreset, AiRecommendation
 )
 
@@ -35,9 +35,9 @@ class SituationContextSerializer(serializers.ModelSerializer):
         model = SituationContext
         fields = ['id', 'unique_signature', 'created_at', 'options', 'options_details']
 
-class ArticleSerializer(serializers.ModelSerializer):
+class NoteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Article
+        model = Note
         fields = '__all__'
 
 class PersonalGoalSerializer(serializers.ModelSerializer):

@@ -324,45 +324,42 @@
             </div>
         </div>
 
-        <!-- B. Articles Section -->
-        <div class="space-y-4 pt-4 border-t border-gray-800">
-            <h2 class="text-xl font-bold flex items-center gap-2">
-                <i class="fa-solid fa-book-open text-blue-500"></i> Context Memory
-            </h2>
+        <i class="fa-solid fa-book-open text-blue-500"></i> Context Memory
+        </h2>
 
-            <!-- Quick Add Article Form -->
-            {% if context %}
-            <div class="glass p-4 rounded-xl border border-blue-500/20">
-                <form method="post" action="{% url 'life_manager:add_article' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="unique_signature" value="{{ context.unique_signature }}">
-                    <input type="text" name="title" placeholder="New Note Title..." required
-                        class="w-full bg-transparent text-white font-semibold mb-2 focus:outline-none placeholder-gray-500">
-                    <textarea name="content" placeholder="Write something about this context..." rows="2" required
-                        class="w-full bg-dark/50 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-                    <div class="text-right mt-2">
-                        <button type="submit"
-                            class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors">
-                            Save Note
-                        </button>
-                    </div>
-                </form>
-            </div>
-            {% endif %}
-
-            <div class="grid gap-4">
-                {% for article in articles %}
-                <div class="glass p-5 rounded-2xl">
-                    <h3 class="text-lg font-semibold text-white mb-2">{{ article.title }}</h3>
-                    <div class="prose prose-invert prose-sm text-gray-400 max-w-none">
-                        {{ article.content|linebreaks }}
-                    </div>
+        <!-- Quick Add Article Form -->
+        {% if context %}
+        <div class="glass p-4 rounded-xl border border-blue-500/20">
+            <form method="post" action="{% url 'life_manager:add_article' %}">
+                {% csrf_token %}
+                <input type="hidden" name="unique_signature" value="{{ context.unique_signature }}">
+                <input type="text" name="title" placeholder="New Note Title..." required
+                    class="w-full bg-transparent text-white font-semibold mb-2 focus:outline-none placeholder-gray-500">
+                <textarea name="content" placeholder="Write something about this context..." rows="2" required
+                    class="w-full bg-dark/50 rounded-lg p-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+                <div class="text-right mt-2">
+                    <button type="submit"
+                        class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors">
+                        Save Note
+                    </button>
                 </div>
-                {% endfor %}
-            </div>
+            </form>
         </div>
+        {% endif %}
 
+        <div class="grid gap-4">
+            {% for article in articles %}
+            <div class="glass p-5 rounded-2xl">
+                <h3 class="text-lg font-semibold text-white mb-2">{{ article.title }}</h3>
+                <div class="prose prose-invert prose-sm text-gray-400 max-w-none">
+                    {{ article.content|linebreaks }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
+
+</div>
 </div>
 </div>
 {% endblock %}

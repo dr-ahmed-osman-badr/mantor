@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import StatusGroup, OptionCategory, StatusOption, SituationContext, Article, PersonalGoal, Achievement, ContextPreset, AiRecommendation
+from .models import (
+    StatusGroup, OptionCategory, StatusOption,
+    SituationContext, Note, PersonalGoal,
+    Achievement, ContextPreset, AiRecommendation
+)
 
 @admin.register(AiRecommendation)
 class AiRecommendationAdmin(admin.ModelAdmin):
@@ -30,6 +34,6 @@ class PersonalGoalAdmin(admin.ModelAdmin):
     list_filter = ('importance', 'is_completed')
 
 admin.site.register(OptionCategory)
-admin.site.register(Article)
+admin.site.register(Note)
 admin.site.register(Achievement)
 admin.site.register(ContextPreset)

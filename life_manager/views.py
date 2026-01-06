@@ -39,8 +39,8 @@ def dashboard_view(request):
     # C. Get Context
     context, created = get_situation_from_selection(selected_ids)
     
-    # D. Get Articles & Goals
-    articles = context.articles.all() if context else []
+    # D. Get Notes & Goals
+    notes = context.notes.all() if context else []
     goals = get_all_relevant_goals(context)
     recommendations = context.recommendations.filter(priority__gte=1).order_by('-priority', '-created_at') if context else []
     
@@ -65,7 +65,7 @@ def dashboard_view(request):
         'context': context,
         'selected_ids': selected_ids,
         'selected_options': selected_options,
-        'articles': articles,
+        'notes': notes,
         'goals': goals,
         'recommendations': recommendations,
         'groups': groups,
@@ -184,9 +184,9 @@ def add_goal(request):
             
     return redirect('life_manager:dashboard')
 
-def add_article(request):
+def add_note(request):
     """
-    Add a note/article to the current context
+    Add a note to the current context
     """
     if request.method == 'POST':
         title = request.POST.get('title')
@@ -200,8 +200,8 @@ def add_article(request):
         if title and content and unique_signature:
             context = SituationContext.objects.filter(unique_signature=unique_signature).first()
             if context:
-                from .models import Article
-                Article.objects.create(
+                from .models import Note
+                Note.objects.create(
                     context=context,
                     title=title,
                     content=content
@@ -214,12 +214,12 @@ def add_article(request):
 from rest_framework import viewsets
 from .serializers import (
     StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
-    SituationContextSerializer, ArticleSerializer, PersonalGoalSerializer,
+    SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
     AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer
 )
 from .models import (
     StatusGroup, OptionCategory, StatusOption, 
-    SituationContext, Article, PersonalGoal, 
+    SituationContext, Note, PersonalGoal, 
     Achievement, ContextPreset, AiRecommendation
 )
 
@@ -242,9 +242,9 @@ class ContextViewSet(viewsets.ModelViewSet):
     queryset = SituationContext.objects.prefetch_related('options').all()
     serializer_class = SituationContextSerializer
 
-class ArticleViewSet(viewsets.ModelViewSet):
-    queryset = Article.objects.all()
-    serializer_class = ArticleSerializer
+class NoteViewSet(viewsets.ModelViewSet):
+    queryset = Note.objects.all()
+    serializer_class = NoteSerializer
 
 class GoalViewSet(viewsets.ModelViewSet):
     queryset = PersonalGoal.objects.all()
