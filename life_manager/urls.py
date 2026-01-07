@@ -18,10 +18,6 @@ router.register(r'recommendations', views.RecommendationViewSet)
 
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),
-    path('mark_goal_achieved/<int:goal_id>/', views.mark_goal_achieved, name='mark_goal_achieved'),
-    path('add_option/', views.add_option, name='add_option'),
-    path('add_goal/', views.add_goal, name='add_goal'),
-    path('add_note/', views.add_note, name='add_note'),
     path('analytics/', views.analytics_view, name='analytics'),
     
     # API Routes managed by Router

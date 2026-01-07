@@ -73,32 +73,7 @@ def dashboard_view(request):
     }
     return render(request, 'life_manager/dashboard.html', context_data)
 
-def mark_goal_achieved(request, goal_id):
-    """
-    Action to complete a goal
-    """
-    if request.method == 'POST':
-        goal = get_object_or_404(PersonalGoal, id=goal_id)
-        reflection = request.POST.get('reflection', '')
-        
-        if not goal.is_completed:
-            goal.is_completed = True
-            goal.save()
-            
-            # Create Achievement
-            Achievement.objects.create(
-                context=goal.context, # Note: This might be null if goal linked to Option only. 
-                                      # ideally we want the CURRENT context. 
-                                      # For now, let's use the goal's context if set, or null.
-                                      # FUTURE IMPROVEMENT: Pass current context ID in form.
-                goal=goal,
-                title=goal.title,
-                description=goal.description,
-                reflection=reflection,
-                points=AnalyticsService.calculate_points(goal.importance)
-            )
-            
-    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
 
 def analytics_view(request):
     """
@@ -114,100 +89,11 @@ def analytics_view(request):
         'mood_stats': mood_stats
     })
 
-def add_option(request):
-    """
-    Simpler quick-add for options (e.g., adding a new Person)
-    """
-    if request.method == 'POST':
-        group_id = request.POST.get('group_id')
-        category_id = request.POST.get('category_id')
-        subcategory_id = request.POST.get('subcategory_id')
-        name = request.POST.get('name')
-        
-        if group_id and name:
-            group = get_object_or_404(StatusGroup, id=group_id)
-            category = None
-            
-            # 1. Try existing category / subcategory
-            if subcategory_id:
-                  category = OptionCategory.objects.filter(id=subcategory_id).first()
-            elif category_id:
-                category = OptionCategory.objects.filter(id=category_id).first()
-            
-            # Handle "Create New Category" Override (Top level only for now)
-            new_cat_name = request.POST.get('category_name')
-            if new_cat_name and group:
-                category, _ = OptionCategory.objects.get_or_create(
-                    group=group,
-                    name=new_cat_name
-                )
 
-            if group:
-                # Default icon for People
-                icon = "fa-user" if group.name == "People" else "fa-tag"
-                
-                StatusOption.objects.get_or_create(
-                    group=group,
-                    category=category,
-                    name=name,
-                    defaults={'icon': icon}
-                )
-            
-            
-    return redirect('life_manager:dashboard')
 
-def add_goal(request):
-    """
-    Quick add goal linked to an option
-    """
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        importance = request.POST.get('importance', 2)
-        linked_option_id = request.POST.get('linked_option_id')
-        
-        if title:
-            goal = PersonalGoal(
-                title=title,
-                importance=int(importance)
-            )
-            
-            if linked_option_id:
-                goal.linked_option = get_object_or_404(StatusOption, id=linked_option_id)
-            else:
-                # If no option selected, maybe link to current context? 
-                # For now, let's keep it simple: global goal if no option, or require option?
-                # The user specifically asked to add targets TO items.
-                pass
-                
-            goal.save()
-            
-            
-    return redirect('life_manager:dashboard')
 
-def add_note(request):
-    """
-    Add a note to the current context
-    """
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        content = request.POST.get('content')
-        # We need to know WHICH context to attach to.
-        # Ideally, we pass the signature or IDs. 
-        # For simplicity, let's re-resolve based on active session/params or hidden input.
-        # Let's use a hidden input 'context_signature' from the form
-        unique_signature = request.POST.get('unique_signature')
-        
-        if title and content and unique_signature:
-            context = SituationContext.objects.filter(unique_signature=unique_signature).first()
-            if context:
-                from .models import Note
-                Note.objects.create(
-                    context=context,
-                    title=title,
-                    content=content
-                )
-    
-    return redirect('life_manager:dashboard')
+
+
     return redirect('life_manager:dashboard')
 
 # --- API ViewSets ---
