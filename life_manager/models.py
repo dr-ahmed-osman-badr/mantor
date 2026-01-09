@@ -132,6 +132,46 @@ class PersonalGoal(models.Model):
     def __str__(self):
         return f"[{self.get_importance_display()}] {self.title}"
 
+    def __str__(self):
+        return f"[{self.get_importance_display()}] {self.title}"
+
+class GoalPlan(models.Model):
+    """
+    A specific plan associated with a personal goal.
+    """
+    goal = models.OneToOneField(PersonalGoal, on_delete=models.CASCADE, related_name='plan')
+    summary = models.TextField(blank=True)
+    content = models.TextField(blank=True) # The "note" part
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='goal_plan_linked')
+    
+    def __str__(self):
+        return f"Plan for {self.goal.title}"
+
+class GoalTaskInfo(models.Model):
+    """
+    Overview/Note for the Tasks section of a goal.
+    """
+    goal = models.OneToOneField(PersonalGoal, on_delete=models.CASCADE, related_name='tasks_info')
+    summary = models.TextField(blank=True)
+    content = models.TextField(blank=True)
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='goal_task_info_linked')
+
+    def __str__(self):
+        return f"Tasks Info for {self.goal.title}"
+
+class SubTask(models.Model):
+    """
+    Individual actionable items within the Tasks section.
+    """
+    goal = models.ForeignKey(PersonalGoal, on_delete=models.CASCADE, related_name='sub_tasks')
+    description = models.CharField(max_length=255)
+    is_completed = models.BooleanField(default=False)
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_task_linked')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.description
+
 # --- 4. Gamification & UX ---
 
 class Achievement(models.Model):
