@@ -2,7 +2,8 @@ from django.contrib import admin
 from .models import (
     StatusGroup, OptionCategory, StatusOption,
     SituationContext, Note, PersonalGoal,
-    Achievement, ContextPreset, AiRecommendation
+    Achievement, ContextPreset, AiRecommendation,
+    GoalPlan, GoalTaskInfo, SubTask
 )
 
 @admin.register(AiRecommendation)
@@ -23,6 +24,18 @@ class AiRecommendationInline(admin.StackedInline):
     model = AiRecommendation
     extra = 1
 
+class GoalPlanInline(admin.StackedInline):
+    model = GoalPlan
+    extra = 0
+
+class GoalTaskInfoInline(admin.StackedInline):
+    model = GoalTaskInfo
+    extra = 0
+
+class SubTaskInline(admin.TabularInline):
+    model = SubTask
+    extra = 1
+
 @admin.register(SituationContext)
 class SituationContextAdmin(admin.ModelAdmin):
     list_display = ('unique_signature', 'created_at')
@@ -32,6 +45,7 @@ class SituationContextAdmin(admin.ModelAdmin):
 class PersonalGoalAdmin(admin.ModelAdmin):
     list_display = ('title', 'importance', 'is_completed', 'context', 'linked_option')
     list_filter = ('importance', 'is_completed')
+    inlines = [GoalPlanInline, GoalTaskInfoInline, SubTaskInline]
 
 admin.site.register(OptionCategory)
 admin.site.register(Note)
