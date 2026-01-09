@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.db.models import Q
 
 # --- 1. Structure: Groups & Options ---
@@ -38,6 +39,37 @@ class StatusOption(models.Model):
     def __str__(self):
         return f"{self.name} ({self.group.name})"
 
+    def __str__(self):
+        return f"{self.name} ({self.group.name})"
+
+# --- 1.5 Chat Intelligence ---
+
+class ChatSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    title = models.CharField(max_length=200, blank=True)
+
+    def __str__(self):
+        return f"Chat {self.id} by {self.user.username}"
+
+class ChatMessage(models.Model):
+    SESSION_ROLES = [
+        ("user", "User"),
+        ("assistant", "Assistant"),
+        ("system", "System"),
+    ]
+
+    session = models.ForeignKey(ChatSession, related_name="messages", on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=SESSION_ROLES)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["timestamp"]
+
+    def __str__(self):
+        return f"[{self.role}] {self.content[:50]}"
+
 # --- 2. The Context Engine ---
 
 class SituationContext(models.Model):
@@ -62,6 +94,7 @@ class Note(models.Model):
     context = models.ForeignKey(SituationContext, on_delete=models.CASCADE, related_name='notes')
     title = models.CharField(max_length=200)
     content = models.TextField()
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='note_linked')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -88,6 +121,7 @@ class PersonalGoal(models.Model):
     # Flexible Linking
     linked_option = models.ForeignKey(StatusOption, on_delete=models.CASCADE, null=True, blank=True, related_name='goals')
     context = models.ForeignKey(SituationContext, on_delete=models.CASCADE, null=True, blank=True, related_name='goals')
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='goal_linked')
     
     deadline = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -144,6 +178,7 @@ class AiRecommendation(models.Model):
     summary = models.TextField()
     recommendation = models.TextField()
     priority = models.IntegerField(choices=PRIORITY_CHOICES, default=2)
+    chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='recommendation_linked')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
