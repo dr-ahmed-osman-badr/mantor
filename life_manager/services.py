@@ -1,4 +1,7 @@
 import datetime
+import requests
+import json
+from django.conf import settings
 from django.db.models import Count, Sum, Q
 from .models import SituationContext, StatusOption, PersonalGoal, StatusGroup, Achievement, ContextPreset
 
@@ -119,3 +122,59 @@ class AnalyticsService:
             4: 100, # Critical
         }
         return points_map.get(importance_level, 0)
+
+# --- 5. N8n Integration Service ---
+
+class N8nIntegrationService:
+    # Updated with user provided ngrok URL
+    N8N_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger" 
+
+    @staticmethod
+    def trigger_context_processing(context_id):
+        """
+        Sends context data to n8n for AI processing.
+        """
+        try:
+            context = SituationContext.objects.get(id=context_id)
+        except SituationContext.DoesNotExist:
+            return
+
+        # 1. Prepare Data Payload
+        options_data = [
+            {
+                "id": opt.id, 
+                "name": opt.name, 
+                "group": opt.group.name, 
+                "category": opt.category.name if opt.category else None
+            } 
+            for opt in context.options.all()
+        ]
+
+        # Fetch related content for context (Notes & Goals)
+        # We limit to recent or active ones to avoid huge payloads
+        notes = context.notes.all().order_by('-created_at')[:5]
+        goals = context.goals.filter(is_completed=False)[:5]
+
+        payload = {
+            "context_id": context.id,
+            "unique_signature": context.unique_signature,
+            "created_at": context.created_at.isoformat(),
+            "options": options_data,
+            "notes": [{"title": n.title, "content": n.content} for n in notes],
+            "active_goals": [{"title": g.title, "importance": g.get_importance_display()} for g in goals],
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+
+        # 2. Send Webhook
+        try:
+            print(f"--- Sending to n8n: {N8nIntegrationService.N8N_WEBHOOK_URL} ---")
+            # Using timeout to prevent hanging the Django process
+            response = requests.post(
+                N8nIntegrationService.N8N_WEBHOOK_URL, 
+                json=payload, 
+                timeout=5
+            )
+            print(f"n8n Response: {response.status_code} - {response.text}")
+        except Exception as e:
+            # Fail silently or log error so user flow isn't interrupted
+            print(f"Error triggering n8n: {e}")
