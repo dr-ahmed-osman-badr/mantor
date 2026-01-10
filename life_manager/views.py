@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
 from .models import StatusGroup, StatusOption, ContextPreset, PersonalGoal, Achievement, SituationContext, OptionCategory
 from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService
 
@@ -101,13 +102,64 @@ from rest_framework import viewsets
 from .serializers import (
     StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
     SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
-    AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer
+    AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer,
+    ChatSessionSerializer, ChatMessageSerializer
 )
 from .models import (
     StatusGroup, OptionCategory, StatusOption, 
     SituationContext, Note, PersonalGoal, 
-    Achievement, ContextPreset, AiRecommendation
+    Achievement, ContextPreset, AiRecommendation,
+    ChatSession, ChatMessage
 )
+
+# ... (Previous ViewSets) ...
+
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ChatSessionViewSet(viewsets.ModelViewSet):
+    """
+    API for managing chat sessions.
+    """
+    queryset = ChatSession.objects.prefetch_related('messages').all()
+    serializer_class = ChatSessionSerializer
+
+    def perform_create(self, serializer):
+        # Handle anonymous requests from App/n8n by falling back to default user
+        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
+        serializer.save(user=user)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ChatMessageViewSet(viewsets.ModelViewSet):
+    """
+    API for managing chat messages.
+    """
+    queryset = ChatMessage.objects.all()
+    serializer_class = ChatMessageSerializer
+
+def _create_related_chat_session(instance, user, initial_message):
+    """
+    Helper: Creates a ChatSession and Initial Message for an instance.
+    """
+    # 1. Create Session
+    title = f"Chat: {getattr(instance, 'title', 'New Item')}"
+    # Fallback to first user if anonymous (e.g. n8n without auth)
+    if not user or user.is_anonymous:
+        user = User.objects.first() 
+    
+    if user:
+        session = ChatSession.objects.create(user=user, title=title)
+        
+        # 2. Create System Message
+        ChatMessage.objects.create(
+            session=session,
+            role="system",
+            content=initial_message
+        )
+        
+        # 3. Link to instance
+        instance.chat_session = session
+        instance.save()
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = StatusGroup.objects.all()
@@ -132,9 +184,25 @@ class NoteViewSet(viewsets.ModelViewSet):
     queryset = Note.objects.all()
     serializer_class = NoteSerializer
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        _create_related_chat_session(
+            instance, 
+            self.request.user, 
+            f"I am ready to discuss your note: '{instance.title}'."
+        )
+
 class GoalViewSet(viewsets.ModelViewSet):
     queryset = PersonalGoal.objects.all()
     serializer_class = PersonalGoalSerializer
+    
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        _create_related_chat_session(
+            instance, 
+            self.request.user, 
+            f"Let's work on your goal: '{instance.title}'. How can I help you achieve it?"
+        )
 
 class AchievementViewSet(viewsets.ModelViewSet):
     queryset = Achievement.objects.all()
@@ -143,6 +211,14 @@ class AchievementViewSet(viewsets.ModelViewSet):
 class RecommendationViewSet(viewsets.ModelViewSet):
     queryset = AiRecommendation.objects.all()
     serializer_class = AiRecommendationSerializer
+    
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        _create_related_chat_session(
+            instance, 
+            self.request.user, 
+            f"I have some advice regarding '{instance.title}'. Let me know if you want to explore this further."
+        )
 
 class PresetViewSet(viewsets.ModelViewSet):
     """

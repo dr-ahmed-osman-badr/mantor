@@ -2,8 +2,22 @@ from rest_framework import serializers
 from .models import (
     StatusGroup, OptionCategory, StatusOption, 
     SituationContext, Note, PersonalGoal, 
-    Achievement, ContextPreset, AiRecommendation
+    Achievement, ContextPreset, AiRecommendation,
+    ChatSession, ChatMessage
 )
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'role', 'content', 'timestamp', 'session']
+
+class ChatSessionSerializer(serializers.ModelSerializer):
+    messages = ChatMessageSerializer(many=True, read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    
+    class Meta:
+        model = ChatSession
+        fields = ['id', 'user', 'title', 'created_at', 'messages']
 
 class StatusGroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,6 +53,7 @@ class NoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
         fields = '__all__'
+        read_only_fields = []
 
 class PersonalGoalSerializer(serializers.ModelSerializer):
     importance_display = serializers.CharField(source='get_importance_display', read_only=True)
@@ -46,7 +61,8 @@ class PersonalGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = PersonalGoal
         fields = ['id', 'title', 'description', 'importance', 'importance_display', 
-                  'is_completed', 'linked_option', 'context', 'deadline', 'created_at']
+                  'is_completed', 'linked_option', 'context', 'deadline', 'created_at', 'chat_session']
+        read_only_fields = []
 
 class AchievementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,7 +74,8 @@ class AiRecommendationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = AiRecommendation
-        fields = ['id', 'context', 'title', 'summary', 'recommendation', 'priority', 'priority_display', 'created_at']
+        fields = ['id', 'context', 'title', 'summary', 'recommendation', 'priority', 'priority_display', 'created_at', 'chat_session']
+        read_only_fields = []
 
 class ContextPresetSerializer(serializers.ModelSerializer):
     # 'options' is a ManyToManyField. By default it expects a list of IDs.

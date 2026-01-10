@@ -128,6 +128,28 @@ class AnalyticsService:
 class N8nIntegrationService:
     # Updated with user provided ngrok URL
     N8N_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger" 
+    N8N_CHAT_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/chat-trigger"
+
+    @staticmethod
+    def trigger_chat_response(session_id, message_content):
+        """
+        Sends chat message to n8n for AI response.
+        """
+        payload = {
+            "session_id": session_id,
+            "message": message_content,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        try:
+            print(f"--- Sending Chat to n8n: {N8nIntegrationService.N8N_CHAT_WEBHOOK_URL} ---")
+            requests.post(
+                N8nIntegrationService.N8N_CHAT_WEBHOOK_URL,
+                json=payload,
+                timeout=5
+            )
+        except Exception as e:
+            print(f"Error triggering chat n8n: {e}")
 
     @staticmethod
     def trigger_context_processing(context_id):
