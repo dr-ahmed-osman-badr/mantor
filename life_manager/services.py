@@ -123,6 +123,99 @@ class AnalyticsService:
         }
         return points_map.get(importance_level, 0)
 
+    @staticmethod
+    def calculate_streaks(user, days_back=30):
+        """
+        Calculates active streaks for 'Place' or 'Activity' options.
+        Returns a list of dicts: [{'name': 'Gym', 'days': 3, 'icon': 'fa-dumbbell'}]
+        """
+        # 1. Get recent contexts for this user (assuming single user for now or filtering if needed)
+        # Note: SituationContext doesn't have a direct user link in this simplistic model, 
+        # but realistically we'd filter by user. For now, we take all.
+        
+        today = datetime.date.today()
+        start_date = today - datetime.timedelta(days=days_back)
+        
+        # Get all contexts created in range
+        active_options = StatusOption.objects.filter(
+            group__name__in=["Place", "Activity"],
+            contexts__created_at__date__gte=start_date
+        ).distinct()
+        
+        streaks = []
+        
+        for option in active_options:
+            # Get dates where this option was used
+            dates_used = SituationContext.objects.filter(
+                options=option,
+                created_at__date__gte=start_date
+            ).dates('created_at', 'day', order='DESC')
+            
+            # Simple Streak Logic: Count consecutive days going back from today/yesterday
+            current_streak = 0
+            check_date = today
+            
+            # Convert QuerySet of dates to list of string or actual date objs for comparison
+            # dates_used returns list of date objects
+            used_dates_set = set(dates_used)
+            
+            # Check if active today
+            if check_date in used_dates_set:
+                current_streak += 1
+                check_date -= datetime.timedelta(days=1)
+            elif (check_date - datetime.timedelta(days=1)) in used_dates_set:
+                # If not today, but yesterday, streak is still alive
+                check_date -= datetime.timedelta(days=1)
+                current_streak += 1
+                check_date -= datetime.timedelta(days=1)
+            else:
+                # Streak broken or not started recently
+                continue
+                
+            # Count backwards
+            while check_date in used_dates_set:
+                current_streak += 1
+                check_date -= datetime.timedelta(days=1)
+                
+            if current_streak > 1:
+                streaks.append({
+                    'name': option.name,
+                    'icon': option.icon if option.icon else "fa-fire",
+                    'streak': current_streak
+                })
+                
+        return sorted(streaks, key=lambda x: x['streak'], reverse=True)
+
+    @staticmethod
+    def get_gamification_profile(user):
+        """
+        Returns simple badges/stats.
+        """
+        # Total Points
+        total_points = Achievement.objects.aggregate(total=Sum('points'))['total'] or 0
+        
+        # Badges
+        badges = []
+        
+        # 1. Newcomer
+        if SituationContext.objects.exists():
+            badges.append({'name': 'Started Journey', 'icon': 'fa-flag', 'color': 'text-green-500'})
+            
+        # 2. High Achiever
+        if total_points > 500:
+             badges.append({'name': 'High Achiever', 'icon': 'fa-trophy', 'color': 'text-yellow-500'})
+             
+        # 3. Night Owl (Contexts after 11 PM)
+        # Filter logic is a bit complex for SQLite time extraction sometimes, doing python check for prototype
+        night_contexts = SituationContext.objects.filter(created_at__hour__gte=23).count()
+        if night_contexts > 5:
+             badges.append({'name': 'Night Owl', 'icon': 'fa-moon', 'color': 'text-purple-500'})
+             
+        return {
+            'total_points': total_points,
+            'badges': badges
+        }
+
 # --- 5. N8n Integration Service ---
 
 import threading
