@@ -125,15 +125,33 @@ class AnalyticsService:
 
 # --- 5. N8n Integration Service ---
 
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
+
 class N8nIntegrationService:
     # Updated with user provided ngrok URL
     N8N_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger" 
     N8N_CHAT_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/chat-trigger"
 
     @staticmethod
+    def _send_payload(url, payload, description):
+        """
+        Internal worker to send payload synchronously.
+        Meant to be run in a thread.
+        """
+        try:
+            logger.info(f"--- Sending {description} to n8n: {url} ---")
+            response = requests.post(url, json=payload, timeout=10)
+            logger.info(f"n8n Response for {description}: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error triggering n8n for {description}: {e}")
+
+    @staticmethod
     def trigger_chat_response(session_id, message_content):
         """
-        Sends chat message to n8n for AI response.
+        Sends chat message to n8n for AI response (Async).
         """
         payload = {
             "session_id": session_id,
@@ -141,24 +159,21 @@ class N8nIntegrationService:
             "timestamp": datetime.datetime.now().isoformat()
         }
         
-        try:
-            print(f"--- Sending Chat to n8n: {N8nIntegrationService.N8N_CHAT_WEBHOOK_URL} ---")
-            requests.post(
-                N8nIntegrationService.N8N_CHAT_WEBHOOK_URL,
-                json=payload,
-                timeout=5
-            )
-        except Exception as e:
-            print(f"Error triggering chat n8n: {e}")
+        thread = threading.Thread(
+            target=N8nIntegrationService._send_payload,
+            args=(N8nIntegrationService.N8N_CHAT_WEBHOOK_URL, payload, "Chat")
+        )
+        thread.start()
 
     @staticmethod
     def trigger_context_processing(context_id):
         """
-        Sends context data to n8n for AI processing.
+        Sends context data to n8n for AI processing (Async).
         """
         try:
             context = SituationContext.objects.get(id=context_id)
         except SituationContext.DoesNotExist:
+            logger.warning(f"Context {context_id} not found for n8n trigger.")
             return
 
         # 1. Prepare Data Payload
@@ -187,16 +202,9 @@ class N8nIntegrationService:
             "timestamp": datetime.datetime.now().isoformat()
         }
 
-        # 2. Send Webhook
-        try:
-            print(f"--- Sending to n8n: {N8nIntegrationService.N8N_WEBHOOK_URL} ---")
-            # Using timeout to prevent hanging the Django process
-            response = requests.post(
-                N8nIntegrationService.N8N_WEBHOOK_URL, 
-                json=payload, 
-                timeout=5
-            )
-            print(f"n8n Response: {response.status_code} - {response.text}")
-        except Exception as e:
-            # Fail silently or log error so user flow isn't interrupted
-            print(f"Error triggering n8n: {e}")
+        # 2. Send Webhook via Thread
+        thread = threading.Thread(
+            target=N8nIntegrationService._send_payload,
+            args=(N8nIntegrationService.N8N_WEBHOOK_URL, payload, "Context")
+        )
+        thread.start()
