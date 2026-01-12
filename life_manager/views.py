@@ -1,9 +1,24 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
-from .models import StatusGroup, StatusOption, ContextPreset, PersonalGoal, Achievement, SituationContext, OptionCategory
+from rest_framework import viewsets
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from .models import (
+    StatusGroup, StatusOption, ContextPreset, PersonalGoal, 
+    Achievement, SituationContext, OptionCategory,
+    AiRecommendation, ChatSession, ChatMessage, Note
+)
 from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService
+from .serializers import (
+    StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
+    SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
+    AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer,
+    ChatSessionSerializer, ChatMessageSerializer
+)
 
 def dashboard_view(request):
     """
@@ -98,23 +113,7 @@ def analytics_view(request):
     return redirect('life_manager:dashboard')
 
 # --- API ViewSets ---
-from rest_framework import viewsets
-from .serializers import (
-    StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
-    SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
-    AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer,
-    ChatSessionSerializer, ChatMessageSerializer
-)
-from .models import (
-    StatusGroup, OptionCategory, StatusOption, 
-    SituationContext, Note, PersonalGoal, 
-    Achievement, ContextPreset, AiRecommendation,
-    ChatSession, ChatMessage
-)
 
-# ... (Previous ViewSets) ...
-
-from django.utils.decorators import method_decorator
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ChatSessionViewSet(viewsets.ModelViewSet):
