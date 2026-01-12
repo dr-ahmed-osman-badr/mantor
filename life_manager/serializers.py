@@ -32,6 +32,7 @@ class OptionCategorySerializer(serializers.ModelSerializer):
 
 class StatusOptionSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(required=False, allow_null=True)
+    group_name = serializers.CharField(source='group.name', read_only=True)
     
     class Meta:
         model = StatusOption
