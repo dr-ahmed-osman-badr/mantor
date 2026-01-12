@@ -31,13 +31,30 @@ class OptionCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'group', 'group_name', 'parent', 'name']
 
 class StatusOptionSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    category_id = serializers.IntegerField(source='category.id', read_only=True)
-    group_name = serializers.CharField(source='group.name', read_only=True)
-
+    category_name = serializers.CharField(required=False, allow_null=True)
+    
     class Meta:
         model = StatusOption
         fields = ['id', 'name', 'icon', 'group', 'group_name', 'category', 'category_name', 'category_id']
+        extra_kwargs = {
+            'category': {'required': False},
+            'icon': {'required': False, 'default': 'fa-tag'}
+        }
+
+    def create(self, validated_data):
+        category_name = validated_data.pop('category_name', None)
+        group = validated_data.get('group')
+        
+        # If category_name is provided but no category ID, create/get the category
+        if category_name and not validated_data.get('category'):
+            category, _ = OptionCategory.objects.get_or_create(
+                group=group,
+                name=category_name,
+                defaults={'name': category_name}
+            )
+            validated_data['category'] = category
+            
+        return super().create(validated_data)
 
 class SituationContextSerializer(serializers.ModelSerializer):
     # For reading, we might want to see which options are selected.
