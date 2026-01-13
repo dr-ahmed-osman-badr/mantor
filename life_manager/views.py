@@ -132,6 +132,24 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     serializer_class = ChatMessageSerializer
     permission_classes = [permissions.AllowAny]
 
+    def perform_create(self, serializer):
+        # 1. Check if this is the generic start message from the Mobile App
+        initial_data = serializer.validated_data
+        content = initial_data.get('content', '')
+        
+        if "I have some advice regarding" in content and "Let me know if you want to explore this further" in content:
+            # 2. Check if linked to a Recommendation
+            session = initial_data.get('session')
+            if session and hasattr(session, 'recommendation_linked'):
+                rec = session.recommendation_linked
+                # 3. Swap content
+                serializer.save(
+                    content=f"Recommendation: '{rec.title}'\n\nSummary: {rec.summary}\n\nDetails: {rec.recommendation}\n\nI'm ready to discuss this recommendation further."
+                )
+                return
+
+        serializer.save()
+
 def _create_related_chat_session(instance, user, initial_message):
     """
     Helper: Creates a ChatSession and Initial Message for an instance.
@@ -209,7 +227,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         _create_related_chat_session(
             instance, 
             self.request.user, 
-            f"I have some advice regarding '{instance.title}'. Let me know if you want to explore this further."
+            f"Recommendation: '{instance.title}'\n\nSummary: {instance.summary}\n\nDetails: {instance.recommendation}\n\nI'm ready to discuss this recommendation further."
         )
 
 class PresetViewSet(viewsets.ModelViewSet):
