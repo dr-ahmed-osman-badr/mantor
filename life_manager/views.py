@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Sum
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
 from rest_framework import viewsets
@@ -115,7 +114,6 @@ def analytics_view(request):
 # --- API ViewSets ---
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ChatSessionViewSet(viewsets.ModelViewSet):
     """
     API for managing chat sessions.
@@ -124,11 +122,8 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     serializer_class = ChatSessionSerializer
 
     def perform_create(self, serializer):
-        # Handle anonymous requests from App/n8n by falling back to default user
-        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
-        serializer.save(user=user)
+        serializer.save(user=self.request.user)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ChatMessageViewSet(viewsets.ModelViewSet):
     """
     API for managing chat messages.
@@ -142,9 +137,6 @@ def _create_related_chat_session(instance, user, initial_message):
     """
     # 1. Create Session
     title = f"Chat: {getattr(instance, 'title', 'New Item')}"
-    # Fallback to first user if anonymous (e.g. n8n without auth)
-    if not user or user.is_anonymous:
-        user = User.objects.first() 
     
     if user:
         session = ChatSession.objects.create(user=user, title=title)
