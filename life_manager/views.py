@@ -3,7 +3,9 @@ from django.db.models import Count, Sum
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
 from rest_framework import viewsets, permissions
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, action
+import requests
+import json
 from rest_framework.response import Response
 
 from .models import (
@@ -229,6 +231,84 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             self.request.user, 
             f"Recommendation: '{instance.title}'\n\nSummary: {instance.summary}\n\nDetails: {instance.recommendation}\n\nI'm ready to discuss this recommendation further."
         )
+
+    @action(detail=False, methods=['post'])
+    def generate_plan(self, request):
+        n8n_url = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger"
+        try:
+            # Prepare payload
+            payload = request.data
+            
+            # Forward to N8N
+            # We strictly pass what we received. 
+            # If the user says "all notes and goals... are already present in the context", 
+            # we trust the frontend sends a rich payload or at least the context reference.
+            response = requests.post(n8n_url, json=payload)
+            response.raise_for_status()
+            
+            n8n_data = response.json()
+            
+            # Extract recommendation details
+            # Assuming N8N returns { "title": "...", "summary": "...", "recommendation": "..." }
+            # Provide defaults if keys missing
+            title = n8n_data.get('title', 'AI Plan')
+            summary = n8n_data.get('summary', 'Generated Plan')
+            recommendation_text = n8n_data.get('recommendation', '')
+            if not recommendation_text:
+                # Fallback: if 'output' or just raw json
+                recommendation_text = n8n_data.get('output', json.dumps(n8n_data, indent=2))
+            
+            # Resolve Context
+            # request.data might have 'context_id' or 'context': {'id': ...}
+            context_id = payload.get('context_id')
+            if not context_id and isinstance(payload.get('context'), dict):
+                context_id = payload['context'].get('id')
+            
+            # Heuristic: Try to find context in notes or goals if not at top level
+            if not context_id:
+                notes = payload.get('notes')
+                if isinstance(notes, list) and len(notes) > 0 and isinstance(notes[0], dict):
+                    context_id = notes[0].get('context')
+            
+            if not context_id:
+                goals = payload.get('goals')
+                if isinstance(goals, list) and len(goals) > 0 and isinstance(goals[0], dict):
+                    context_id = goals[0].get('context')
+
+            # Lookup by Signature (Frontend seems to send 'signature')
+            if not context_id:
+                signature = payload.get('signature')
+                if signature:
+                    try:
+                        situation_context = SituationContext.objects.get(unique_signature=signature)
+                        context_id = situation_context.id
+                    except SituationContext.DoesNotExist:
+                        pass
+
+            # Use the first context if absolutely nothing is provided but context objects exist?
+            # No, that's dangerous. Fail if no context.
+            if not context_id: 
+                 return Response({"error": "Context ID is required. Please include 'context_id', 'signature', OR ensure notes/goals objects have 'context' field."}, status=400)
+
+            if 'situation_context' not in locals():
+                situation_context = get_object_or_404(SituationContext, pk=context_id)
+
+            # Create Recommendation
+            rec = AiRecommendation.objects.create(
+                context=situation_context,
+                title=title,
+                summary=summary,
+                recommendation=recommendation_text,
+                priority=2 # Medium default
+            )
+            
+            serializer = self.get_serializer(rec)
+            return Response(serializer.data)
+            
+        except requests.exceptions.RequestException as e:
+            return Response({"error": f"N8N Error: {str(e)}"}, status=502)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 class PresetViewSet(viewsets.ModelViewSet):
     """
