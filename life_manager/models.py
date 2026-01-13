@@ -39,8 +39,7 @@ class StatusOption(models.Model):
     def __str__(self):
         return f"{self.name} ({self.group.name})"
 
-    def __str__(self):
-        return f"{self.name} ({self.group.name})"
+
 
 # --- 1.5 Chat Intelligence ---
 
@@ -132,8 +131,7 @@ class PersonalGoal(models.Model):
     def __str__(self):
         return f"[{self.get_importance_display()}] {self.title}"
 
-    def __str__(self):
-        return f"[{self.get_importance_display()}] {self.title}"
+
 
 class GoalPlan(models.Model):
     """

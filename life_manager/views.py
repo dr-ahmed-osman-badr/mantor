@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Sum
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -130,6 +130,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     """
     queryset = ChatMessage.objects.all()
     serializer_class = ChatMessageSerializer
+    permission_classes = [permissions.AllowAny]
 
 def _create_related_chat_session(instance, user, initial_message):
     """
