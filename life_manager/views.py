@@ -111,7 +111,7 @@ def analytics_view(request):
 
 
 
-    return redirect('life_manager:dashboard')
+
 
 # --- API ViewSets ---
 
