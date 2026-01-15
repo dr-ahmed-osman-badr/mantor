@@ -423,3 +423,25 @@ class PresetViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def change_password(request):
+    """
+    Change password endpoint.
+    Expects 'old_password' and 'new_password'.
+    """
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    
+    if not old_password or not new_password:
+        return Response({'error': 'Both old_password and new_password are required.'}, status=400)
+    
+    if not user.check_password(old_password):
+        return Response({'error': 'Incorrect old password.'}, status=400)
+    
+    user.set_password(new_password)
+    user.save()
+    
+    return Response({'message': 'Password changed successfully.'}, status=200)

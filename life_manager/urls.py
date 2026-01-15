@@ -4,7 +4,7 @@ from .views import (
     dashboard_view, analytics_view, GroupViewSet, CategoryViewSet,
     OptionViewSet, ContextViewSet, NoteViewSet, GoalViewSet,
     AchievementViewSet, RecommendationViewSet, PresetViewSet,
-    ChatSessionViewSet, ChatMessageViewSet, register_user
+    ChatSessionViewSet, ChatMessageViewSet, register_user, change_password
 )
 
 app_name = 'life_manager'
@@ -30,4 +30,5 @@ urlpatterns = [
     
     # API Routes managed by Router
     path('', include(router.urls)),
+    path('change-password/', change_password, name='change_password'),
 ]
