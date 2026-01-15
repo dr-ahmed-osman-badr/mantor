@@ -4,7 +4,8 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
 from django.db.models import Q, Prefetch
 from rest_framework import viewsets, permissions
-from rest_framework.decorators import api_view, action
+from rest_framework.decorators import api_view, action, permission_classes # Import permission_classes
+from rest_framework.permissions import AllowAny # Import AllowAny
 import requests
 import json
 from rest_framework.response import Response
@@ -13,15 +14,33 @@ from rest_framework.exceptions import PermissionDenied
 from .models import (
     StatusGroup, StatusOption, ContextPreset, PersonalGoal, 
     Achievement, SituationContext, OptionCategory,
-    AiRecommendation, ChatSession, ChatMessage, Note
+    AiRecommendation, ChatSession, ChatMessage, Note, Profile
 )
 from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService
 from .serializers import (
     StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
     SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
     AchievementSerializer, ContextPresetSerializer, AiRecommendationSerializer,
-    ChatSessionSerializer, ChatMessageSerializer
+    ChatSessionSerializer, ChatMessageSerializer, UserRegistrationSerializer
 )
+from rest_framework.authtoken.models import Token # Import Token
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    """
+    Registers a new user and returns an auth token.
+    """
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+            'username': user.username
+        }, status=201)
+    return Response(serializer.errors, status=400)
 
 def dashboard_view(request):
     """

@@ -4,7 +4,7 @@ from .views import (
     dashboard_view, analytics_view, GroupViewSet, CategoryViewSet,
     OptionViewSet, ContextViewSet, NoteViewSet, GoalViewSet,
     AchievementViewSet, RecommendationViewSet, PresetViewSet,
-    ChatSessionViewSet, ChatMessageViewSet
+    ChatSessionViewSet, ChatMessageViewSet, register_user
 )
 
 app_name = 'life_manager'
@@ -24,6 +24,7 @@ router.register(r'chat_sessions', ChatSessionViewSet)
 router.register(r'chat_messages', ChatMessageViewSet)
 
 urlpatterns = [
+    path('register/', register_user, name='register'),
     path('', dashboard_view, name='dashboard'),
     path('analytics/', analytics_view, name='analytics'),
     

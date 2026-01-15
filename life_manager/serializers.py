@@ -3,8 +3,28 @@ from .models import (
     StatusGroup, OptionCategory, StatusOption, 
     SituationContext, Note, PersonalGoal, 
     Achievement, ContextPreset, AiRecommendation,
-    ChatSession, ChatMessage
+    ChatSession, ChatMessage, Profile
 )
+from django.contrib.auth.models import User
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'phone_number']
+
+    def create(self, validated_data):
+        phone_number = validated_data.pop('phone_number', '')
+        password = validated_data.pop('password')
+        
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        
+        Profile.objects.create(user=user, phone_number=phone_number)
+        return user
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
