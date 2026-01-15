@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Sum
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
+from django.db.models import Q, Prefetch
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import api_view, action
 import requests
@@ -62,11 +63,18 @@ def dashboard_view(request):
     goals = get_all_relevant_goals(context)
     recommendations = context.recommendations.filter(priority__gte=1).order_by('-priority', '-created_at') if context else []
     
-    groups_qs = StatusGroup.objects.prefetch_related(
-        'statusoption_set',
-        'categories',
-        'categories__subcategories',
-        'categories__statusoption_set'
+    
+    # Filter groups/options for dashboard: System Defaults + User's Own
+    # We need to filter the prefetch querysets
+    from django.db.models import Prefetch
+
+    user_filter = Q(user=request.user) | Q(user__isnull=True) if request.user.is_authenticated else Q(user__isnull=True)
+
+    groups_qs = StatusGroup.objects.filter(user_filter).prefetch_related(
+        Prefetch('statusoption_set', queryset=StatusOption.objects.filter(user_filter)),
+        'categories', # We might need to filter these too but simple relation doesn't accept filter directly in string
+        Prefetch('categories__subcategories', queryset=OptionCategory.objects.filter(user_filter)),
+        Prefetch('categories__statusoption_set', queryset=StatusOption.objects.filter(user_filter))
     ).all()
     
     # Custom ordering: Myself first, then others
@@ -192,30 +200,63 @@ def _create_related_chat_session(instance, user, initial_message):
         instance.save()
 
 class GroupViewSet(viewsets.ModelViewSet):
-    queryset = StatusGroup.objects.all()
+    queryset = StatusGroup.objects.none()
     serializer_class = StatusGroupSerializer
 
+    def get_queryset(self):
+        # Hybrid Access: Public (System) + Private (User)
+        user = self.request.user
+        if user.is_authenticated:
+            return StatusGroup.objects.filter(Q(user=user) | Q(user__isnull=True))
+        return StatusGroup.objects.filter(user__isnull=True)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = OptionCategory.objects.all()
+    queryset = OptionCategory.objects.none()
     serializer_class = OptionCategorySerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return OptionCategory.objects.filter(Q(user=user) | Q(user__isnull=True))
+        return OptionCategory.objects.filter(user__isnull=True)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 class OptionViewSet(viewsets.ModelViewSet):
     """
     API for listing and retrieving StatusOptions.
     """
-    queryset = StatusOption.objects.select_related('group', 'category').all()
+    queryset = StatusOption.objects.none()
     serializer_class = StatusOptionSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return StatusOption.objects.select_related('group', 'category').filter(Q(user=user) | Q(user__isnull=True))
+        return StatusOption.objects.select_related('group', 'category').filter(user__isnull=True)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 class ContextViewSet(viewsets.ModelViewSet):
     queryset = SituationContext.objects.prefetch_related('options').all()
     serializer_class = SituationContextSerializer
 
 class NoteViewSet(viewsets.ModelViewSet):
-    queryset = Note.objects.all()
+    queryset = Note.objects.none()
     serializer_class = NoteSerializer
 
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Note.objects.filter(user=self.request.user)
+        return Note.objects.none()
+
     def perform_create(self, serializer):
-        instance = serializer.save()
+        instance = serializer.save(user=self.request.user)
         _create_related_chat_session(
             instance, 
             self.request.user, 
@@ -223,11 +264,16 @@ class NoteViewSet(viewsets.ModelViewSet):
         )
 
 class GoalViewSet(viewsets.ModelViewSet):
-    queryset = PersonalGoal.objects.all()
+    queryset = PersonalGoal.objects.none()
     serializer_class = PersonalGoalSerializer
     
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return PersonalGoal.objects.filter(user=self.request.user)
+        return PersonalGoal.objects.none()
+
     def perform_create(self, serializer):
-        instance = serializer.save()
+        instance = serializer.save(user=self.request.user)
         _create_related_chat_session(
             instance, 
             self.request.user, 
@@ -235,15 +281,29 @@ class GoalViewSet(viewsets.ModelViewSet):
         )
 
 class AchievementViewSet(viewsets.ModelViewSet):
-    queryset = Achievement.objects.all()
+    queryset = Achievement.objects.none()
+    serializer_class = AchievementSerializer
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Achievement.objects.filter(user=self.request.user)
+        return Achievement.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
     serializer_class = AchievementSerializer
 
 class RecommendationViewSet(viewsets.ModelViewSet):
-    queryset = AiRecommendation.objects.all()
+    queryset = AiRecommendation.objects.none()
     serializer_class = AiRecommendationSerializer
     
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return AiRecommendation.objects.filter(user=self.request.user)
+        return AiRecommendation.objects.none()
+
     def perform_create(self, serializer):
-        instance = serializer.save()
+        instance = serializer.save(user=self.request.user)
         _create_related_chat_session(
             instance, 
             self.request.user, 
@@ -314,6 +374,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             # Create Recommendation
             rec = AiRecommendation.objects.create(
                 context=situation_context,
+                user=request.user,
                 title=title,
                 summary=summary,
                 recommendation=recommendation_text,
@@ -332,5 +393,14 @@ class PresetViewSet(viewsets.ModelViewSet):
     """
     API for creating and listing ContextPresets.
     """
-    queryset = ContextPreset.objects.all()
+    queryset = ContextPreset.objects.none()
     serializer_class = ContextPresetSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return ContextPreset.objects.filter(Q(user=user) | Q(user__isnull=True))
+        return ContextPreset.objects.filter(user__isnull=True)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

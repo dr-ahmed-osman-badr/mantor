@@ -10,6 +10,7 @@ class StatusGroup(models.Model):
     Flexible to add more dimensions later.
     """
     name = models.CharField(max_length=100, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     
     def __str__(self):
         return self.name
@@ -20,6 +21,7 @@ class OptionCategory(models.Model):
     """
     group = models.ForeignKey(StatusGroup, on_delete=models.CASCADE, related_name='categories')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subcategories')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
 
     def __str__(self):
@@ -33,6 +35,7 @@ class StatusOption(models.Model):
     """
     group = models.ForeignKey(StatusGroup, on_delete=models.CASCADE)
     category = models.ForeignKey(OptionCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
     icon = models.CharField(max_length=50, blank=True, help_text="FontAwesome icon name (e.g., 'fa-home')")
 
@@ -91,6 +94,7 @@ class Note(models.Model):
     Knowledge or Notes linked to a specific unique context.
     """
     context = models.ForeignKey(SituationContext, on_delete=models.CASCADE, related_name='notes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=200)
     content = models.TextField()
     chat_session = models.OneToOneField(ChatSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='note_linked')
@@ -112,6 +116,7 @@ class PersonalGoal(models.Model):
         (4, 'Critical'),
     ]
     
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     importance = models.IntegerField(choices=IMPORTANCE_CHOICES, default=2)
@@ -177,6 +182,7 @@ class Achievement(models.Model):
     History of successes.
     """
     context = models.ForeignKey(SituationContext, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     goal = models.OneToOneField(PersonalGoal, on_delete=models.SET_NULL, null=True, blank=True)
     
     title = models.CharField(max_length=200)
@@ -195,6 +201,7 @@ class ContextPreset(models.Model):
     """
     name = models.CharField(max_length=100)
     icon = models.CharField(max_length=50, default="star")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     options = models.ManyToManyField(StatusOption)
 
     def __str__(self):
@@ -212,6 +219,7 @@ class AiRecommendation(models.Model):
     ]
 
     context = models.ForeignKey(SituationContext, on_delete=models.CASCADE, related_name='recommendations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=200)
     summary = models.TextField()
     recommendation = models.TextField()
