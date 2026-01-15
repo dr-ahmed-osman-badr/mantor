@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, action
 import requests
 import json
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
 from .models import (
     StatusGroup, StatusOption, ContextPreset, PersonalGoal, 
@@ -120,8 +121,11 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     """
     API for managing chat sessions.
     """
-    queryset = ChatSession.objects.prefetch_related('messages').all()
+    queryset = ChatSession.objects.all()
     serializer_class = ChatSessionSerializer
+
+    def get_queryset(self):
+        return ChatSession.objects.filter(user=self.request.user).prefetch_related('messages')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -130,13 +134,27 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     """
     API for managing chat messages.
     """
-    queryset = ChatMessage.objects.all()
+    queryset = ChatMessage.objects.none()
     serializer_class = ChatMessageSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+             return ChatMessage.objects.all()
+        return ChatMessage.objects.filter(session__user=user)
 
     def perform_create(self, serializer):
-        # 1. Check if this is the generic start message from the Mobile App
+        # 0. Check session ownership
         initial_data = serializer.validated_data
+        session = initial_data.get('session')
+        user = self.request.user
+        
+        # Allow owner OR staff (AI Agent)
+        if session and session.user != user and not user.is_staff:
+            raise PermissionDenied("You do not have permission to post messages to this session.")
+
+        # 1. Check if this is the generic start message from the Mobile App
         content = initial_data.get('content', '')
         
         if "I have some advice regarding" in content and "Let me know if you want to explore this further" in content:
