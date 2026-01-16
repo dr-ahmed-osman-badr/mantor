@@ -11,7 +11,7 @@ from life_manager.models import SituationContext, StatusOption, StatusGroup, Not
 
 def test_home_trigger():
     print("--- Starting LIVE n8n Integration Test (Home Context - Debug) ---")
-    print("Target URL: https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger")
+    print("Target URL: https://myn8n.loca.lt/webhook/context-trigger")
 
     try:
         # 1. Ensure 'Place' group and 'Home' option exist

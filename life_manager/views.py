@@ -331,7 +331,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def generate_plan(self, request):
-        n8n_url = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger"
+        n8n_url = "https://myn8n.loca.lt/webhook/context-trigger"
         try:
             # Prepare payload
             payload = request.data

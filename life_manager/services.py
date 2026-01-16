@@ -225,8 +225,11 @@ logger = logging.getLogger(__name__)
 
 class N8nIntegrationService:
     # Updated with user provided ngrok URL
-    N8N_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/context-trigger" 
-    N8N_CHAT_WEBHOOK_URL = "https://agatha-semiacademic-marlee.ngrok-free.dev/webhook/chat-trigger"
+    # N8N_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/context-trigger" 
+    # N8N_CHAT_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/chat-trigger"
+
+    N8N_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/context-trigger" 
+    N8N_CHAT_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/chat-trigger"
 
     @staticmethod
     def _send_payload(url, payload, description):
@@ -245,17 +248,42 @@ class N8nIntegrationService:
     def trigger_chat_response(session_id, message_content):
         """
         Sends chat message to n8n for AI response (Async).
+        Updated to handle response and save it as an assistant message.
         """
         payload = {
             "session_id": session_id,
             "message": message_content,
             "timestamp": datetime.datetime.now().isoformat()
         }
+
+        def _send_and_save_reply():
+            try:
+                logger.info(f"--- Sending Chat to n8n: {N8nIntegrationService.N8N_CHAT_WEBHOOK_URL} ---")
+                response = requests.post(N8nIntegrationService.N8N_CHAT_WEBHOOK_URL, json=payload, timeout=30) # Increased timeout for AI generation
+                response.raise_for_status()
+
+                # Parse Response
+                data = response.json()
+                ai_text = data.get('response', '') 
+                
+                if not ai_text:
+                    # Fallback if raw text returned or different key
+                    ai_text = data.get('output', json.dumps(data))
+
+                if ai_text:
+                    from .models import ChatMessage # Import locally to avoid circular dependency
+                    ChatMessage.objects.create(
+                        session_id=session_id,
+                        role='assistant',
+                        content=ai_text
+                    )
+                    logger.info(f"Saved AI response for Session {session_id}")
+
+            except Exception as e:
+                logger.error(f"Error in Chat N8N flow: {e}")
+
         
-        thread = threading.Thread(
-            target=N8nIntegrationService._send_payload,
-            args=(N8nIntegrationService.N8N_CHAT_WEBHOOK_URL, payload, "Chat")
-        )
+        thread = threading.Thread(target=_send_and_save_reply)
         thread.start()
 
     @staticmethod
