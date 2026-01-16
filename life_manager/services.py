@@ -225,12 +225,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class N8nIntegrationService:
-    # Updated with user provided ngrok URL
-    # N8N_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/context-trigger" 
-    # N8N_CHAT_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/chat-trigger"
+    # Centralized N8N Base URL
+    N8N_BASE_URL = "https://vegetarian-essentials-musicians-requires.trycloudflare.com"
 
-    N8N_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/context-trigger" 
-    N8N_CHAT_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/chat-trigger"
+    N8N_WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/context-trigger"
+    N8N_CHAT_WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/chat-trigger"
 
     @staticmethod
     def post_with_retry(url, payload, description, timeout=30):
@@ -277,9 +276,28 @@ class N8nIntegrationService:
         Sends chat message to n8n for AI response (Async).
         Updated to handle response and save it as an assistant message.
         """
+        # Fetch History
+        from .models import ChatMessage # Import locally
+        # Get last 10 messages (excluding the current one if it was just saved? 
+        # Actually usually this triggers on post_save of the USER message.
+        # So the user message IS in the DB.
+        # We want everything leading up to this point. 
+        # But wait, trigger_chat_message sends "message_content". 
+        # If we include history, we should include the current message in history or separately?
+        # Standard generic AI prompts usually take a list of messages.
+        # Let's send history separately as 'history'.
+        
+        last_messages = ChatMessage.objects.filter(session_id=session_id).order_by('-timestamp')[:10]
+        # Reverse to chronological order
+        history = [
+            {"role": msg.role, "content": msg.content} 
+            for msg in reversed(last_messages)
+        ]
+
         payload = {
             "session_id": session_id,
             "message": message_content,
+            "history": history,
             "timestamp": datetime.datetime.now().isoformat()
         }
 

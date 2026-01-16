@@ -334,10 +334,14 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         n8n_url = N8nIntegrationService.N8N_WEBHOOK_URL
         try:
             # Prepare payload
-            payload = request.data
+            payload = request.data.copy() # Make a mutable copy
+            
+            # Compatibility Mapping: Frontend sends 'goals', but N8N Context Workflow expects 'active_goals'
+            if 'goals' in payload and 'active_goals' not in payload:
+                payload['active_goals'] = payload['goals']
             
             # Forward to N8N
-            # We strictly pass what we received. 
+            # We strictly pass what we received (plus mapping). 
             # If the user says "all notes and goals... are already present in the context", 
             # we trust the frontend sends a rich payload or at least the context reference.
             
