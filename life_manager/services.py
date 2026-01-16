@@ -225,11 +225,11 @@ logger = logging.getLogger(__name__)
 
 class N8nIntegrationService:
     # Updated with user provided ngrok URL
-    # N8N_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/context-trigger" 
-    # N8N_CHAT_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/chat-trigger"
+    # N8N_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/context-trigger" 
+    # N8N_CHAT_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/chat-trigger"
 
-    N8N_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/context-trigger" 
-    N8N_CHAT_WEBHOOK_URL = "https://myn8n.loca.lt/webhook/chat-trigger"
+    N8N_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/context-trigger" 
+    N8N_CHAT_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/chat-trigger"
 
     @staticmethod
     def _send_payload(url, payload, description):
