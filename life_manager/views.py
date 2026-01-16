@@ -16,7 +16,7 @@ from .models import (
     Achievement, SituationContext, OptionCategory,
     AiRecommendation, ChatSession, ChatMessage, Note, Profile
 )
-from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService
+from .services import get_situation_from_selection, get_smart_defaults, get_all_relevant_goals, AnalyticsService, N8nIntegrationService
 from .serializers import (
     StatusGroupSerializer, OptionCategorySerializer, StatusOptionSerializer,
     SituationContextSerializer, NoteSerializer, PersonalGoalSerializer,
@@ -331,7 +331,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def generate_plan(self, request):
-        n8n_url = "https://ahmedgarip.loca.lt/webhook/context-trigger"
+        n8n_url = N8nIntegrationService.N8N_WEBHOOK_URL
         try:
             # Prepare payload
             payload = request.data
@@ -340,8 +340,11 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             # We strictly pass what we received. 
             # If the user says "all notes and goals... are already present in the context", 
             # we trust the frontend sends a rich payload or at least the context reference.
-            response = requests.post(n8n_url, json=payload)
-            response.raise_for_status()
+            
+            # USE RETRY SERVICE
+            response = N8nIntegrationService.post_with_retry(n8n_url, payload, "Generate Plan", timeout=120)
+            # response.raise_for_status() # Handled inside post_with_retry
+
             
             n8n_data = response.json()
             

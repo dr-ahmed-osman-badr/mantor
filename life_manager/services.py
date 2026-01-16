@@ -1,6 +1,7 @@
 import datetime
 import requests
 import json
+from requests.adapters import HTTPAdapter, Retry
 from django.conf import settings
 from django.db.models import Count, Sum, Q
 from .models import SituationContext, StatusOption, PersonalGoal, StatusGroup, Achievement, ContextPreset
@@ -232,17 +233,43 @@ class N8nIntegrationService:
     N8N_CHAT_WEBHOOK_URL = "https://ahmedgarip.loca.lt/webhook/chat-trigger"
 
     @staticmethod
+    def post_with_retry(url, payload, description, timeout=30):
+        """
+        Sends a POST request with robust retry logic (Exponential Backoff).
+        """
+        session = requests.Session()
+        retries = Retry(
+            total=5,
+            backoff_factor=1,  # Wait 1s, 2s, 4s, 8s, 16s...
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["POST"]
+        )
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        session.mount('http://', HTTPAdapter(max_retries=retries))
+
+        try:
+            logger.info(f"--- Sending {description} to n8n: {url} ---")
+            response = session.post(url, json=payload, timeout=timeout)
+            response.raise_for_status()
+            logger.info(f"n8n Response for {description}: {response.status_code}")
+            return response
+        except requests.exceptions.RetryError:
+            logger.error(f"Max retries exceeded for {description} to {url}")
+            raise
+        except Exception as e:
+            logger.error(f"Error triggering n8n for {description}: {e}")
+            raise
+
+    @staticmethod
     def _send_payload(url, payload, description):
         """
         Internal worker to send payload synchronously.
         Meant to be run in a thread.
         """
         try:
-            logger.info(f"--- Sending {description} to n8n: {url} ---")
-            response = requests.post(url, json=payload, timeout=10)
-            logger.info(f"n8n Response for {description}: {response.status_code}")
-        except Exception as e:
-            logger.error(f"Error triggering n8n for {description}: {e}")
+           N8nIntegrationService.post_with_retry(url, payload, description)
+        except Exception:
+            pass # Error already logged in helper
 
     @staticmethod
     def trigger_chat_response(session_id, message_content):
@@ -258,17 +285,33 @@ class N8nIntegrationService:
 
         def _send_and_save_reply():
             try:
-                logger.info(f"--- Sending Chat to n8n: {N8nIntegrationService.N8N_CHAT_WEBHOOK_URL} ---")
-                response = requests.post(N8nIntegrationService.N8N_CHAT_WEBHOOK_URL, json=payload, timeout=30) # Increased timeout for AI generation
-                response.raise_for_status()
-
+                response = N8nIntegrationService.post_with_retry(
+                    N8nIntegrationService.N8N_CHAT_WEBHOOK_URL, 
+                    payload, 
+                    "Chat",
+                    timeout=60 # Long timeout for AI generation
+                )
+                
                 # Parse Response
                 data = response.json()
+
+                # Robust check for "Workflow was started" or invalid responses
+                if data.get("message") == "Workflow was started":
+                    logger.warning(f"Session {session_id}: Received 'Workflow was started'. Webhook is not configured to wait for last node.")
+                    return # Do not save this as a chat message
+
                 ai_text = data.get('response', '') 
                 
                 if not ai_text:
                     # Fallback if raw text returned or different key
-                    ai_text = data.get('output', json.dumps(data))
+                    ai_text = data.get('output', '')
+                
+                if not ai_text and 'text' in data:
+                     ai_text = data['text']
+
+                if not ai_text:
+                     # Final fallback: dump json if it's not the "Workflow started" message
+                     ai_text = json.dumps(data)
 
                 if ai_text:
                     from .models import ChatMessage # Import locally to avoid circular dependency
