@@ -226,7 +226,7 @@ logger = logging.getLogger(__name__)
 
 class N8nIntegrationService:
     # Centralized N8N Base URL
-    N8N_BASE_URL = "https://vegetarian-essentials-musicians-requires.trycloudflare.com"
+    N8N_BASE_URL = "http://localhost:5678"
 
     N8N_WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/context-trigger"
     N8N_CHAT_WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/chat-trigger"
